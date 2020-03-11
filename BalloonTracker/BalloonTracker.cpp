@@ -4,6 +4,7 @@
 // Project
 #include "FrameBuffer.h"
 #include "SettingsWrapper.h"
+#include "PanTiltControl.h"
 
 // C/C++
 #include <vector>
@@ -170,11 +171,12 @@ int main(int argc, char* argv[]) {
 		cerr << "exiting..." << endl;
 		return EXIT_FAILURE;
 	}
+
 	//create GUI windows
 	namedWindow("Image");
 	namedWindow("blob");
-	createTrackbar("S Thresh", "Image", &SThresh, 255, SThreshSet);
-	createTrackbar("R Thresh", "Image", &RThresh, 255, SThreshSet);
+	createTrackbar("S Thresh", "blob", &SThresh, 255, SThreshSet);
+	createTrackbar("R Thresh", "blob", &RThresh, 255, SThreshSet);
 	//create Background Subtractor objects
 	std::thread videoReadThread(processVideo, sw.camera);
 	processFrames();

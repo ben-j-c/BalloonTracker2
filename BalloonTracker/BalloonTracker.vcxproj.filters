@@ -21,6 +21,9 @@
     <ClCompile Include="..\SerialPort.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="PanTiltControl.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\settings.json">
@@ -33,6 +36,9 @@
     </ClInclude>
     <ClInclude Include="..\IPCameraTest\FrameBuffer.h">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PanTiltControl.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

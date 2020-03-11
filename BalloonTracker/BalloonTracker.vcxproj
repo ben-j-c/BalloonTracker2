@@ -156,6 +156,7 @@
   <ItemGroup>
     <ClCompile Include="..\SerialPort.cpp" />
     <ClCompile Include="BalloonTracker.cpp" />
+    <ClCompile Include="PanTiltControl.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\settings.json" />
@@ -163,6 +164,7 @@
   <ItemGroup>
     <ClInclude Include="..\IPCameraTest\FrameBuffer.h" />
     <ClInclude Include="..\SettingsWrapper.h" />
+    <ClInclude Include="PanTiltControl.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -34,9 +34,11 @@ public:
 	double motor_pan_factor;
 	double motor_pan_min;
 	double motor_pan_max;
+	double motor_pan_forward;
 	double motor_tilt_factor;
 	double motor_tilt_min;
 	double motor_tilt_max;
+	double motor_tilt_forward;
 
 	bool show_frame_rgb;
 	bool show_frame_mask;
@@ -45,9 +47,8 @@ public:
 	bool print_rotation;
 	bool print_info;
 
-	Document d;
-
-	void verifyExistance() {
+private:
+	void verifyExistance(Document& d) {
 		assert(d.HasMember("debug"));
 
 		assert(d.HasMember("com_timeout"));
@@ -69,9 +70,11 @@ public:
 		assert(d.HasMember("motor_pan_factor"));
 		assert(d.HasMember("motor_pan_min"));
 		assert(d.HasMember("motor_pan_max"));
+		assert(d.HasMember("motor_pan_forward"));
 		assert(d.HasMember("motor_tilt_factor"));
 		assert(d.HasMember("motor_tilt_min"));
 		assert(d.HasMember("motor_tilt_max"));
+		assert(d.HasMember("motor_tilt_forward"));
 
 
 		assert(d.HasMember("show_frame_rgb"));
@@ -82,7 +85,7 @@ public:
 		assert(d.HasMember("print_info"));
 	}
 
-	void verifyType() {
+	void verifyType(Document& d) {
 		assert(d["debug"].IsBool());
 
 		assert(d["com_timeout"].IsInt());
@@ -104,9 +107,11 @@ public:
 		assert(d["motor_pan_factor"].IsDouble());
 		assert(d["motor_pan_min"].IsDouble());
 		assert(d["motor_pan_max"].IsDouble());
+		assert(d["motor_pan_forward"].IsDouble());
 		assert(d["motor_tilt_factor"].IsDouble());
 		assert(d["motor_tilt_min"].IsDouble());
 		assert(d["motor_tilt_max"].IsDouble());
+		assert(d["motor_tilt_forward"].IsDouble());
 
 		assert(d["show_frame_rgb"].IsBool());
 		assert(d["show_frame_mask"].IsBool());
@@ -116,7 +121,7 @@ public:
 		assert(d["print_info"].IsBool());
 	}
 
-	void loadValues() {
+	void loadValues(Document& d) {
 		debug = d["debug"].GetBool();
 
 		com_timeout = d["com_timeout"].GetInt();
@@ -140,9 +145,11 @@ public:
 		motor_pan_factor = d["motor_pan_factor"].GetDouble();
 		motor_pan_min = d["motor_pan_min"].GetDouble();
 		motor_pan_max = d["motor_pan_max"].GetDouble();
+		motor_pan_max = d["motor_pan_forward"].GetDouble();
 		motor_tilt_factor = d["motor_tilt_factor"].GetDouble();
 		motor_tilt_min = d["motor_tilt_min"].GetDouble();
 		motor_tilt_max = d["motor_tilt_max"].GetDouble();
+		motor_tilt_max = d["motor_tilt_forward"].GetDouble();
 
 		show_frame_rgb = d["show_frame_rgb"].GetBool();
 		show_frame_mask = d["show_frame_mask"].GetBool();
@@ -151,7 +158,7 @@ public:
 		print_rotation = d["print_rotation"].GetBool();
 		print_info = d["print_info"].GetBool();
 	}
-
+public:
 	SettingsWrapper(string fileName) {
 		std::ifstream fileStream(fileName, std::ifstream::in);
 		if (!fileStream.is_open()) {
@@ -159,11 +166,11 @@ public:
 		}
 		stringstream loadedFile;
 		loadedFile << fileStream.rdbuf();
-
+		Document d;
 		d.Parse(loadedFile.str().data());
-		verifyExistance();
-		verifyType();
-		loadValues();
+		verifyExistance(d);
+		verifyType(d);
+		loadValues(d);
 	}
 };
 
