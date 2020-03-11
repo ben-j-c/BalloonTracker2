@@ -142,6 +142,7 @@ void processVideo(char* videoFilename) {
 
 	//create the capture object
 	VideoCapture capture(videoFilename);
+	Mat frame;
 	while (keyboard != 'q' && keyboard != 27) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		if (!capture.isOpened()) {
@@ -150,7 +151,6 @@ void processVideo(char* videoFilename) {
 			exit(-1);
 		}
 
-		Mat frame;
 		if (!capture.read(frame)) {
 			capture.release();
 			capture.open(videoFilename);
