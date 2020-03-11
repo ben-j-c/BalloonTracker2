@@ -76,7 +76,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <LibraryPath>C:\Users\Ben\Programming\ocv\x64\vc16\lib;$(LibraryPath)</LibraryPath>
-    <IncludePath>C:\Users\Ben\Programming\ocv\include;$(SolutionDir)include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\Users\Ben\Programming\ocv\include;$(SolutionDir)include;$(SolutionDir);$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -161,6 +161,7 @@
     <None Include="..\settings.json" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\IPCameraTest\FrameBuffer.h" />
     <ClInclude Include="..\SettingsWrapper.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

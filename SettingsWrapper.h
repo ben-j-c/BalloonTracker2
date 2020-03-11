@@ -154,6 +154,9 @@ public:
 
 	SettingsWrapper(string fileName) {
 		std::ifstream fileStream(fileName, std::ifstream::in);
+		if (!fileStream.is_open()) {
+			throw "File was not opened or not found.";
+		}
 		stringstream loadedFile;
 		loadedFile << fileStream.rdbuf();
 

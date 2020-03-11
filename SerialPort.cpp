@@ -1,5 +1,6 @@
 /*
 * Author: Manash Kumar Mandal
+* Fixed by Benjamin Correia
 * Modified Library introduced in Arduino Playground which does not work
 * This works perfectly
 * LICENSE: MIT

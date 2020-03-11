@@ -31,5 +31,8 @@
     <ClInclude Include="..\SettingsWrapper.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\IPCameraTest\FrameBuffer.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
