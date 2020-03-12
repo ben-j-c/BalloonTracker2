@@ -172,5 +172,7 @@ public:
 		verifyType(d);
 		loadValues(d);
 	}
+
+	SettingsWrapper() {}
 };
 

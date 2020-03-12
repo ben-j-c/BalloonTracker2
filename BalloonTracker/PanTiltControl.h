@@ -5,12 +5,7 @@
 #pragma once
 namespace PTC {
 	void useSettings(SettingsWrapper& sw);
-	void panCallback(int value, void*) {
-		std::cout << "panCallback" << std::endl;
-	}
-
-	void tiltCallback(int value, void*) {
-		std::cout << "tiltCallback" << std::endl;
-	}
+	void panCallback(int value, void*);
+	void tiltCallback(int value, void*);
 }
 

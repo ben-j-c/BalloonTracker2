@@ -2,7 +2,7 @@
 //
 
 // Project
-#include "FrameBuffer.h"
+#include <FrameBuffer.h>
 #include "SettingsWrapper.h"
 #include "PanTiltControl.h"
 
@@ -113,8 +113,8 @@ void processFrames() {
 		resized.download(displayFrame);
 		if (loc.size() > 0) {
 			cv::Scalar mean = cv::mean(loc);
-			cout << mean[0] << " " << mean[1] << " " << sqrt(loc.size()/M_PI)*2.0 << " " << endl;
-			cv::drawMarker(displayFrame, cv::Point2i(mean[0], mean[1]), cv::Scalar(255, 0, 0, 0), 0, 20 , 2);
+			cout << mean[0] << " " << mean[1] << " " << sqrt(loc.size() / M_PI) * 2.0 << " " << endl;
+			cv::drawMarker(displayFrame, cv::Point2i(mean[0], mean[1]), cv::Scalar(255, 0, 0, 0), 0, 20, 2);
 		}
 		else {
 			cout << "No pixels found" << endl;
@@ -169,7 +169,7 @@ int main(int argc, char* argv[]) {
 	//print help information
 	help();
 	//check for the input parameter correctness
-	if (argc > 1 ) {
+	if (argc > 1) {
 		cerr << "Incorrect input list" << endl;
 		cerr << "exiting..." << endl;
 		return EXIT_FAILURE;
