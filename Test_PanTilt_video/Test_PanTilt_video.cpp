@@ -180,6 +180,9 @@ int main(int argc, char* argv[]) {
 	namedWindow("blob");
 	createTrackbar("S Thresh", "blob", &SThresh, 255, SThreshSet);
 	createTrackbar("R Thresh", "blob", &RThresh, 255, SThreshSet);
+
+	createTrackbar("Pan", "Image", nullptr, 180, PTC::panCallback);
+	createTrackbar("Tilt", "Image", nullptr, 180, PTC::tiltCallback);
 	//create Background Subtractor objects
 	std::thread videoReadThread(processVideo, sw.camera);
 	processFrames();
