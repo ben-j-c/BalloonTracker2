@@ -113,8 +113,12 @@ void processFrames() {
 		resized.download(displayFrame);
 		if (loc.size() > 0) {
 			cv::Scalar mean = cv::mean(loc);
-			cout << mean[0] << " " << mean[1] << " " << sqrt(loc.size() / M_PI) * 2.0 << " " << endl;
-			cv::drawMarker(displayFrame, cv::Point2i(mean[0], mean[1]), cv::Scalar(255, 0, 0, 0), 0, 20, 2);
+			double radius = sqrt(loc.size() / M_PI);
+			cv::drawMarker(displayFrame, cv::Point2i(mean[0]+radius, mean[1]), cv::Scalar(255, 0, 0, 0), 0, 10, 1);
+			cv::drawMarker(displayFrame, cv::Point2i(mean[0]-radius, mean[1]), cv::Scalar(255, 0, 0, 0), 0, 10, 1);
+			cv::drawMarker(displayFrame, cv::Point2i(mean[0], mean[1]+radius), cv::Scalar(255, 0, 0, 0), 0, 10, 1);
+			cv::drawMarker(displayFrame, cv::Point2i(mean[0], mean[1]-radius), cv::Scalar(255, 0, 0, 0), 0, 10, 1);
+
 		}
 		else {
 			cout << "No pixels found" << endl;
@@ -181,8 +185,9 @@ int main(int argc, char* argv[]) {
 	createTrackbar("S Thresh", "blob", &SThresh, 255, SThreshSet);
 	createTrackbar("R Thresh", "blob", &RThresh, 255, SThreshSet);
 
-	createTrackbar("Pan", "Image", nullptr, 180, PTC::panCallback);
-	createTrackbar("Tilt", "Image", nullptr, 180, PTC::tiltCallback);
+	PTC::useSettings(sw);
+	createTrackbar("Pan", "Image", &PTC::pan, PTC::panRange(), PTC::panCallback);
+	createTrackbar("Tilt", "Image", &PTC::tilt, PTC::tiltRange(), PTC::tiltCallback);
 	//create Background Subtractor objects
 	std::thread videoReadThread(processVideo, sw.camera);
 	processFrames();

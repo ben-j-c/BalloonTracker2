@@ -155,10 +155,15 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\BalloonTracker\PanTiltControl.cpp" />
+    <ClCompile Include="..\SerialPort.cpp" />
     <ClCompile Include="Test_PanTilt_video.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\BalloonTracker\PanTiltControl.h" />
+    <ClInclude Include="..\SettingsWrapper.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\settings.json" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

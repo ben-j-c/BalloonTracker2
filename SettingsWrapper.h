@@ -145,11 +145,11 @@ private:
 		motor_pan_factor = d["motor_pan_factor"].GetDouble();
 		motor_pan_min = d["motor_pan_min"].GetDouble();
 		motor_pan_max = d["motor_pan_max"].GetDouble();
-		motor_pan_max = d["motor_pan_forward"].GetDouble();
+		motor_pan_forward = d["motor_pan_forward"].GetDouble();
 		motor_tilt_factor = d["motor_tilt_factor"].GetDouble();
 		motor_tilt_min = d["motor_tilt_min"].GetDouble();
 		motor_tilt_max = d["motor_tilt_max"].GetDouble();
-		motor_tilt_max = d["motor_tilt_forward"].GetDouble();
+		motor_tilt_forward = d["motor_tilt_forward"].GetDouble();
 
 		show_frame_rgb = d["show_frame_rgb"].GetBool();
 		show_frame_mask = d["show_frame_mask"].GetBool();
@@ -173,6 +173,6 @@ public:
 		loadValues(d);
 	}
 
-	SettingsWrapper() {}
+	SettingsWrapper() = default;
 };
 
