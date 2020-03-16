@@ -111,7 +111,7 @@ void processFrames() {
 		blob.download(displayFrame);
 		cv::findNonZero(displayFrame, loc);
 		resized.download(displayFrame);
-		if (loc.size() > 0) {
+		if (loc.size() > 50) {
 			cv::Scalar mean = cv::mean(loc);
 			double radius = sqrt(loc.size() / M_PI);
 			cv::drawMarker(displayFrame, cv::Point2i(mean[0]+radius, mean[1]), cv::Scalar(255, 0, 0, 0), 0, 10, 1);
@@ -137,28 +137,46 @@ void processFrames() {
 	}
 }
 
-void processVideo(string videoFileName) {
+Mutex grabbingThread;
 
+void grabFrames(VideoCapture *capture) {
+	while(capture->isOpened()) {
+		if (grabbingThread.trylock()) {
+			capture->grab();
+			grabbingThread.unlock();
+			std::this_thread::sleep_for(std::chrono::microseconds(500));
+		}
+	}
+}
+
+void processVideo(string videoFileName) {
 	//create the capture object
 	VideoCapture capture(videoFileName.data());
 	capture.set(CAP_PROP_BUFFERSIZE, 2);
+	capture.grab();
+	std::thread grabber(grabFrames, &capture);
 	Mat frame;
 	while (keyboard != 'q' && keyboard != 27) {
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		if (!capture.isOpened()) {
 			//error in opening the video input
 			cerr << "Unable to open video file: " << videoFileName << endl;
 			exit(-1);
 		}
-
-		if (!capture.read(frame)) {
+		grabbingThread.lock();
+		if (!capture.retrieve(frame)) {
 			capture.release();
 			capture.open(videoFileName);
+			grabbingThread.unlock();
 			continue;
 		}
+		grabbingThread.unlock();
 		frameBuff.insertFrame(frame.clone());
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
 	}
+	grabbingThread.lock();
 	capture.release();
+	grabber.join();
+	grabbingThread.unlock();
 }
 
 void SThreshSet(int v, void*) {
@@ -191,6 +209,7 @@ int main(int argc, char* argv[]) {
 	//create Background Subtractor objects
 	std::thread videoReadThread(processVideo, sw.camera);
 	processFrames();
+	videoReadThread.join();
 	//destroy GUI windows
 	destroyAllWindows();
 	return EXIT_SUCCESS;

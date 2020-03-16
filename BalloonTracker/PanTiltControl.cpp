@@ -66,12 +66,10 @@ void PTC::useSettings(SettingsWrapper& wrap) {
 
 void PTC::panCallback(int value, void*) {
 	writePos(PTC::pan + sw.motor_pan_min, PTC::tilt + sw.motor_tilt_min);
-	//writePos(PTC::pan, PTC::tilt);
 }
 
 void PTC::tiltCallback(int value, void*) {
 	writePos(PTC::pan + sw.motor_pan_min, PTC::tilt + sw.motor_tilt_min);
-	//writePos(PTC::pan, PTC::tilt);
 }
 
 int PTC::panRange() {
