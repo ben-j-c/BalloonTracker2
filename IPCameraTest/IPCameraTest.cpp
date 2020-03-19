@@ -2,6 +2,7 @@
 //
 #include "pch.h"
 #include "FrameBuffer.h"
+#include <SettingsWrapper.h>
 
 #include<vector>
 //opencv
@@ -37,6 +38,13 @@ using namespace std;
 
 // Global variables
 FrameBuffer frameBuff(50);
+int index_acq = 0;
+int index_proc = 0;
+vector<float> frameTimesImageAcq(10);
+vector<float> frameTimesProc(10);
+SettingsWrapper sw("./../settings.json");
+Scalar blobMean;
+
 
 char keyboard; //input from keyboard
 void help() {
@@ -93,15 +101,19 @@ void processFrames() {
 	pr.
 	Ptr<cv::SimpleBlobDetector> det = cv::SimpleBlobDetector::create();
 	*/
+	std::chrono::high_resolution_clock timer;
+	using milisec = std::chrono::duration<float, std::milli>;
 	while (keyboard != 'q' && keyboard != 27) {
 		Mat frame = frameBuff.getReadFrame();
+		auto start = timer.now();
+
 		cuda::GpuMat gpuFrame(frame);
 		frameBuff.readDone();
 
 		cuda::resize(gpuFrame, resized, cv::Size(gpuFrame.cols/4, gpuFrame.rows/4));
 		rgChroma(resized, chroma);
-		cuda::threshold(chroma[0], chroma[0], 110, 255, THRESH_BINARY);
-		cuda::threshold(chroma[3], chroma[3], 51, 255, THRESH_BINARY);
+		cuda::threshold(chroma[0], chroma[0], sw.thresh_red, 255, THRESH_BINARY);
+		cuda::threshold(chroma[3], chroma[3], sw.thresh_s, 255, THRESH_BINARY);
 
 		cuda::bitwise_and(chroma[3], chroma[0], blob);
 		
@@ -109,13 +121,17 @@ void processFrames() {
 		std::vector<cv::Point> loc;
 		blob.download(displayFrame);
 		cv::findNonZero(displayFrame, loc);
-		cv::Scalar mean = cv::mean(loc);
+		if(loc.size() > 0)
+			blobMean = cv::mean(loc);
 
-		std::cout << mean << std::endl;
+		auto stop = timer.now();
+		float dt = std::chrono::duration_cast<milisec>(stop - start).count();
+		frameTimesProc[index_proc] = dt;
+		index_proc = (index_proc + 1) % 10;
 
 
 		chroma[3].download(displayFrame);
-		cv::drawMarker(displayFrame, cv::Point2i(mean[0], mean[1]), cv::Scalar(255, 0, 0, 0));
+		cv::drawMarker(displayFrame, Point2i(blobMean[0], blobMean[1]), Scalar(255, 0, 0, 0));
 		imshow("S", displayFrame);
 
 		chroma[0].download(displayFrame);
@@ -143,8 +159,11 @@ void processVideo(char* videoFilename) {
 	//create the capture object
 	VideoCapture capture(videoFilename);
 	Mat frame;
+	std::chrono::high_resolution_clock timer;
+	using milisec = std::chrono::duration<float, std::milli>;
 	while (keyboard != 'q' && keyboard != 27) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		auto start = timer.now();
 		if (!capture.isOpened()) {
 			//error in opening the video input
 			cerr << "Unable to open video file: " << videoFilename << endl;
@@ -157,8 +176,28 @@ void processVideo(char* videoFilename) {
 			continue;
 		}
 		frameBuff.insertFrame(frame.clone());
+
+		auto stop = timer.now();
+		float dt = std::chrono::duration_cast<milisec>(stop - start).count();
+		frameTimesImageAcq[index_acq] = dt;
+		index_acq = (index_acq + 1) % 10;
 	}
 	capture.release();
+}
+
+void consoleUpdate() {
+	while (keyboard != 'q' && keyboard != 27) {
+		Scalar imageAcqFPS = cv::mean(frameTimesImageAcq);
+		Scalar imageProcFPS = cv::mean(frameTimesProc);
+
+		for(int i = 0;i < 3;i++)
+			cout << "\33[2K" << "\033[A" << "\r";
+
+		cout << "Acquisition FPS: " << 1000.0/imageAcqFPS[0] << "             " << endl;
+		cout << "Processing FPS: " << 1000.0/imageProcFPS[0] << "             " << endl;
+		cout << "Blob mean: " << blobMean << "             ";
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+	}
 }
 
 int main(int argc, char* argv[]) {
@@ -178,7 +217,10 @@ int main(int argc, char* argv[]) {
 	namedWindow("blob");
 	//create Background Subtractor objects
 	std::thread videoReadThread(processVideo, argv[1]);
+	std::thread consoleUpdateThread(consoleUpdate);
 	processFrames();
+	videoReadThread.join();
+	consoleUpdateThread.join();
 	//destroy GUI windows
 	destroyAllWindows();
 	return EXIT_SUCCESS;
