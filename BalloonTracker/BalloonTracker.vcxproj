@@ -155,6 +155,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\CameraMath.cpp" />
     <ClCompile Include="..\SerialPort.cpp" />
     <ClCompile Include="BalloonTracker.cpp" />
     <ClCompile Include="PanTiltControl.cpp" />
