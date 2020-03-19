@@ -56,7 +56,7 @@ void help() {
 		<< "This program attempts to connect to the IP camera using OpenCV" << endl
 		<< endl
 		<< "Usage:" << endl
-		<< "./IPCameraTest.exe" << endl
+		<< "./BalloonTracker.exe" << endl
 		<< "--------------------------------------------------------------------------" << endl
 		<< endl;
 }
@@ -99,10 +99,13 @@ void processFrames() {
 		cuda::GpuMat gpuFrame(frame);
 		frameBuff.readDone();
 
-		cuda::resize(gpuFrame, resized, cv::Size(gpuFrame.cols / 4, gpuFrame.rows / 4));
+		cuda::resize(gpuFrame, resized,
+			cv::Size(
+				gpuFrame.cols*sw.image_resize_factor,
+				gpuFrame.rows*sw.image_resize_factor));
 		rgChroma(resized, chroma);
-		cuda::threshold(chroma[0], chroma[0], RThresh, 255, THRESH_BINARY);
-		cuda::threshold(chroma[3], chroma[3], SThresh, 255, THRESH_BINARY);
+		cuda::threshold(chroma[0], chroma[0], sw.thresh_red, 255, THRESH_BINARY);
+		cuda::threshold(chroma[3], chroma[3], sw.thresh_s, 255, THRESH_BINARY);
 
 		cuda::bitwise_and(chroma[3], chroma[0], blob);
 
@@ -111,10 +114,14 @@ void processFrames() {
 		blob.download(displayFrame);
 		cv::findNonZero(displayFrame, loc);
 		resized.download(displayFrame);
-		if (loc.size() > 0) {
+		if (loc.size() > 50) {
 			cv::Scalar mean = cv::mean(loc);
-			cout << mean[0] << " " << mean[1] << " " << sqrt(loc.size()/M_PI)*2.0 << " " << endl;
-			cv::drawMarker(displayFrame, cv::Point2i(mean[0], mean[1]), cv::Scalar(255, 0, 0, 0), 0, 20 , 2);
+			double pxRadius = sqrt(loc.size() / M_PI);
+			cv::drawMarker(displayFrame, cv::Point2i(mean[0] + pxRadius, mean[1]), cv::Scalar(255, 0, 0, 0), 0, 10, 1);
+			cv::drawMarker(displayFrame, cv::Point2i(mean[0] - pxRadius, mean[1]), cv::Scalar(255, 0, 0, 0), 0, 10, 1);
+			cv::drawMarker(displayFrame, cv::Point2i(mean[0], mean[1] + pxRadius), cv::Scalar(255, 0, 0, 0), 0, 10, 1);
+			cv::drawMarker(displayFrame, cv::Point2i(mean[0], mean[1] - pxRadius), cv::Scalar(255, 0, 0, 0), 0, 10, 1);
+			
 		}
 		else {
 			cout << "No pixels found" << endl;
@@ -124,9 +131,6 @@ void processFrames() {
 
 		blob.download(displayFrame);
 		imshow("blob", displayFrame);
-
-		//std::vector<cuda::GpuMat> splitImg{ chroma[2], chroma[1], chroma[0] };
-		//cuda::merge(splitImg, gpuFrame);
 
 		//get the input from the keyboard
 		keyboard = (char)waitKey(1);
@@ -157,14 +161,6 @@ void processVideo(string videoFileName) {
 	capture.release();
 }
 
-void SThreshSet(int v, void*) {
-	SThresh = v;
-}
-
-void RThreshSet(int v, void*) {
-	RThresh = v;
-}
-
 int main(int argc, char* argv[]) {
 	//print help information
 	help();
@@ -178,11 +174,10 @@ int main(int argc, char* argv[]) {
 	//create GUI windows
 	namedWindow("Image");
 	namedWindow("blob");
-	createTrackbar("S Thresh", "blob", &SThresh, 255, SThreshSet);
-	createTrackbar("R Thresh", "blob", &RThresh, 255, SThreshSet);
 	//create Background Subtractor objects
 	std::thread videoReadThread(processVideo, sw.camera);
 	processFrames();
+	videoReadThread.join();
 	//destroy GUI windows
 	destroyAllWindows();
 	return EXIT_SUCCESS;

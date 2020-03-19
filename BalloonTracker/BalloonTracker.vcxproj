@@ -163,6 +163,7 @@
     <None Include="..\settings.json" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\CameraMath.h" />
     <ClInclude Include="..\IPCameraTest\FrameBuffer.h" />
     <ClInclude Include="..\SettingsWrapper.h" />
     <ClInclude Include="PanTiltControl.h" />
