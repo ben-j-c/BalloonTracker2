@@ -9,5 +9,7 @@ namespace CameraMath {
 	double calcRadialDistance(double pxSize, double pxX, double pxY);
 	double calcPanRelative(double pxX);
 	double calcTiltRelative(double pxY);
-	struct pos { double x, y, z; } calcRelativePos(double pan, double tilt, double radial);
+	struct pos { double x, y, z; };
+	pos calcRelativePos(double pan, double tilt, double radial);
+	pos calcRelativePos(double pxSize, double pxX, double pxY);
 }
