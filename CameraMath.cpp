@@ -1,7 +1,4 @@
 #include "CameraMath.h"
-#include <opencv2/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
 
 #ifndef _USE_MATH_DEFINES
 #define _USE_MATH_DEFINES
