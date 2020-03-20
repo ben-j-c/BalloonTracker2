@@ -7,6 +7,10 @@ namespace PTC {
 	extern int pan;
 	extern int tilt;
 	void useSettings(SettingsWrapper& sw);
+	void writePos(int pan, int tilt);
+	void moveHome();
+	void disengage();
+	void shutdown();
 	void panCallback(int value, void*);
 	void tiltCallback(int value, void*);
 	int panRange();

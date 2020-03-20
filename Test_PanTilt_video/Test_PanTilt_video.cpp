@@ -118,19 +118,17 @@ void processFrames() {
 			cv::drawMarker(displayFrame, cv::Point2i(mean[0]-radius, mean[1]), cv::Scalar(255, 0, 0, 0), 0, 10, 1);
 			cv::drawMarker(displayFrame, cv::Point2i(mean[0], mean[1]+radius), cv::Scalar(255, 0, 0, 0), 0, 10, 1);
 			cv::drawMarker(displayFrame, cv::Point2i(mean[0], mean[1]-radius), cv::Scalar(255, 0, 0, 0), 0, 10, 1);
-
+			string s = std::to_string(mean[0]) + " " + std::to_string(mean[1]);
+			cv::putText(displayFrame, s, Point(10, 10), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(255, 0, 0, 0));
 		}
 		else {
-			cout << "No pixels found" << endl;
+			cv::putText(displayFrame, "No blob found", Point(10, 10), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(255, 0, 0, 0));
 		}
 
 		imshow("Image", displayFrame);
 
 		blob.download(displayFrame);
 		imshow("blob", displayFrame);
-
-		//std::vector<cuda::GpuMat> splitImg{ chroma[2], chroma[1], chroma[0] };
-		//cuda::merge(splitImg, gpuFrame);
 
 		//get the input from the keyboard
 		keyboard = (char)waitKey(1);
@@ -140,7 +138,7 @@ void processFrames() {
 Mutex grabbingThread;
 
 void grabFrames(VideoCapture *capture) {
-	while(capture->isOpened()) {
+	while(keyboard != 'q' && keyboard != 27 && capture->isOpened()) {
 		if (grabbingThread.trylock()) {
 			capture->grab();
 			grabbingThread.unlock();
@@ -212,5 +210,6 @@ int main(int argc, char* argv[]) {
 	videoReadThread.join();
 	//destroy GUI windows
 	destroyAllWindows();
+	PTC::shutdown();
 	return EXIT_SUCCESS;
 }

@@ -23,7 +23,7 @@ static void delay(int ms) {
 
 }
 
-static void writePos(int pan, int tilt) {
+void PTC::writePos(int pan, int tilt) {
 	uint8_t writeBuffer[5];
 	writeBuffer[0] = 'p';
 	writeBuffer[1] = pan & 0xFF;
@@ -32,6 +32,32 @@ static void writePos(int pan, int tilt) {
 	writeBuffer[4] = (tilt >> 8) & 0xFF;
 	ardy->writeSerialPort((char*)writeBuffer, 5);
 	delay(50);
+}
+
+void PTC::moveHome() {
+	writePos(sw.motor_pan_forward, sw.motor_tilt_forward);
+}
+
+void PTC::disengage() {
+	PTC::moveHome();
+	char readBuffer[BUFF_LEN] = { '\0' };
+	ardy->writeSerialPort("d",1);
+	for (int i = 0; readBuffer[0] != 'c'; i++) {
+		ardy->readSerialPort(readBuffer, BUFF_LEN);
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		if (readBuffer[0] != 'c') {
+			if (i == 10)
+				std::cerr << "Did not recieve disengage ack from arduino!" << std::endl;
+			else
+				std::cout << "Attempting to read ack again" << std::endl;
+		}
+	}
+}
+
+void PTC::shutdown() {
+	PTC::moveHome();
+	delay(500);
+	PTC::disengage();
 }
 
 void PTC::useSettings(SettingsWrapper& wrap) {
@@ -59,9 +85,8 @@ void PTC::useSettings(SettingsWrapper& wrap) {
 		std::cout << "Connection established" << std::endl;
 	else
 		exit(-1);
-	delay(1000);
 	writePos(PTC::pan + sw.motor_pan_min, PTC::tilt + sw.motor_tilt_min);
-	delay(1000);
+	delay(50);
 }
 
 void PTC::panCallback(int value, void*) {
