@@ -13,6 +13,7 @@ namespace PTC {
 	void shutdown();
 	void panCallback(int value, void*);
 	void tiltCallback(int value, void*);
+	bool addRotation(double pan, double tilt);
 	int panRange();
 	int tiltRange();
 }

@@ -1,4 +1,5 @@
 #include "PanTiltControl.h"
+#include "PanTiltControl.h"
 #include <SerialPort.hpp>
 #include <thread>
 #include <string>
@@ -24,6 +25,8 @@ static void delay(int ms) {
 }
 
 void PTC::writePos(int pan, int tilt) {
+	PTC::pan = pan - sw.motor_pan_min;
+	PTC::tilt = tilt - sw.motor_tilt_min;
 	uint8_t writeBuffer[5];
 	writeBuffer[0] = 'p';
 	writeBuffer[1] = pan & 0xFF;
@@ -35,7 +38,7 @@ void PTC::writePos(int pan, int tilt) {
 }
 
 void PTC::moveHome() {
-	writePos(sw.motor_pan_forward, sw.motor_tilt_forward);
+	PTC::writePos(sw.motor_pan_forward, sw.motor_tilt_forward);
 }
 
 void PTC::disengage() {
@@ -95,6 +98,11 @@ void PTC::panCallback(int value, void*) {
 
 void PTC::tiltCallback(int value, void*) {
 	writePos(PTC::pan + sw.motor_pan_min, PTC::tilt + sw.motor_tilt_min);
+}
+
+bool PTC::addRotation(double pan, double tilt)
+{
+	return false;
 }
 
 int PTC::panRange() {

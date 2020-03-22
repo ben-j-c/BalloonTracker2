@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.29020.237
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.705
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BalloonTracker", "BalloonTracker\BalloonTracker.vcxproj", "{A7054205-B950-4CEA-B4A0-54C17EF9FCDA}"
 EndProject
@@ -16,6 +16,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{4F6B5587-A25B-4503-8B30-1736878AB9BE}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test_PanTilt_video", "Test_PanTilt_video\Test_PanTilt_video.vcxproj", "{E5845811-96BC-4D6A-8208-476522E1B0B9}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test_PanTilt_Camera_Coord", "Test_PanTilt_Camera_Coord\Test_PanTilt_Camera_Coord.vcxproj", "{21D2F634-C520-4382-85D8-45465F3CD98E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -73,6 +75,14 @@ Global
 		{E5845811-96BC-4D6A-8208-476522E1B0B9}.Release|x64.Build.0 = Release|x64
 		{E5845811-96BC-4D6A-8208-476522E1B0B9}.Release|x86.ActiveCfg = Release|Win32
 		{E5845811-96BC-4D6A-8208-476522E1B0B9}.Release|x86.Build.0 = Release|Win32
+		{21D2F634-C520-4382-85D8-45465F3CD98E}.Debug|x64.ActiveCfg = Debug|x64
+		{21D2F634-C520-4382-85D8-45465F3CD98E}.Debug|x64.Build.0 = Debug|x64
+		{21D2F634-C520-4382-85D8-45465F3CD98E}.Debug|x86.ActiveCfg = Debug|Win32
+		{21D2F634-C520-4382-85D8-45465F3CD98E}.Debug|x86.Build.0 = Debug|Win32
+		{21D2F634-C520-4382-85D8-45465F3CD98E}.Release|x64.ActiveCfg = Release|x64
+		{21D2F634-C520-4382-85D8-45465F3CD98E}.Release|x64.Build.0 = Release|x64
+		{21D2F634-C520-4382-85D8-45465F3CD98E}.Release|x86.ActiveCfg = Release|Win32
+		{21D2F634-C520-4382-85D8-45465F3CD98E}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
