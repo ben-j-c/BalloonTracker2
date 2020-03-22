@@ -100,9 +100,29 @@ void PTC::tiltCallback(int value, void*) {
 	writePos(PTC::pan + sw.motor_pan_min, PTC::tilt + sw.motor_tilt_min);
 }
 
-bool PTC::addRotation(double pan, double tilt)
+bool PTC::addRotation(double panDeg, double tiltDeg)
 {
-	return false;
+	//double curPan = (pan + sw.motor_pan_min - sw.motor_pan_forward) / sw.motor_pan_factor;
+	//double curTilt = -(tilt + sw.motor_tilt_min - sw.motor_tilt_forward) / sw.motor_tilt_factor;
+	bool returner = true;
+
+
+	double deltaPan = panDeg * sw.motor_pan_factor;
+	double deltaTilt = tiltDeg * sw.motor_tilt_factor;
+
+	int newPan = pan + deltaPan;
+	int newTilt = tilt + deltaTilt;
+	if (newPan + sw.motor_pan_min <= sw.motor_pan_max && newPan >= 0)
+		pan = newPan;
+	else
+		returner = false;
+
+	if (newTilt + sw.motor_tilt_min <= sw.motor_tilt_max && newTilt >= 0)
+		tilt = newTilt;
+	else
+		returner = false;
+
+	return returner;
 }
 
 int PTC::panRange() {
