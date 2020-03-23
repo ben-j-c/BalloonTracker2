@@ -150,6 +150,7 @@ int main(int argc, char* argv[]) {
 	std::thread videoReadThread(processVideo, sw.camera);
 	processFrames();
 	videoReadThread.join();
+	PTC::shutdown();
 	//destroy GUI windows
 	destroyAllWindows();
 	return EXIT_SUCCESS;

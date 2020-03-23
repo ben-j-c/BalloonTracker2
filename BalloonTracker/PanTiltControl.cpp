@@ -24,9 +24,14 @@ static void delay(int ms) {
 
 }
 
+/* Write motor positions and perform clamping within min to max (motor_pan_min in settings.json).
+*/
 void PTC::writePos(int pan, int tilt) {
+	pan = max(min(pan, sw.motor_pan_max), sw.motor_pan_min);
+	tilt = max(min(tilt, sw.motor_tilt_max), sw.motor_tilt_min);
 	PTC::pan = pan - sw.motor_pan_min;
 	PTC::tilt = tilt - sw.motor_tilt_min;
+
 	uint8_t writeBuffer[5];
 	writeBuffer[0] = 'p';
 	writeBuffer[1] = pan & 0xFF;
@@ -37,12 +42,21 @@ void PTC::writePos(int pan, int tilt) {
 	delay(50);
 }
 
+/* Write motor positions, but min value is 0 and max value is (max - min).
+*/
+void PTC::writePosShifted(int pan, int tilt) {
+	PTC::writePos(pan + sw.motor_pan_min, tilt + sw.motor_tilt_min);
+}
+
+/* Moves motors to motor_x_forward position (motor_pan_forward and motor_tilt_forward in settings.json).
+*/
 void PTC::moveHome() {
 	PTC::writePos(sw.motor_pan_forward, sw.motor_tilt_forward);
 }
 
+/* Disengage the motors. Checks to verify that the microcontroller received the signal.
+*/
 void PTC::disengage() {
-	PTC::moveHome();
 	char readBuffer[BUFF_LEN] = { '\0' };
 	ardy->writeSerialPort("d",1);
 	for (int i = 0; readBuffer[0] != 'c'; i++) {
@@ -93,11 +107,11 @@ void PTC::useSettings(SettingsWrapper& wrap) {
 }
 
 void PTC::panCallback(int value, void*) {
-	writePos(PTC::pan + sw.motor_pan_min, PTC::tilt + sw.motor_tilt_min);
+	writePosShifted(PTC::pan, PTC::tilt);
 }
 
 void PTC::tiltCallback(int value, void*) {
-	writePos(PTC::pan + sw.motor_pan_min, PTC::tilt + sw.motor_tilt_min);
+	writePosShifted(PTC::pan, PTC::tilt);
 }
 
 bool PTC::addRotation(double panDeg, double tiltDeg)
@@ -108,7 +122,7 @@ bool PTC::addRotation(double panDeg, double tiltDeg)
 
 
 	double deltaPan = panDeg * sw.motor_pan_factor;
-	double deltaTilt = tiltDeg * sw.motor_tilt_factor;
+	double deltaTilt = -tiltDeg * sw.motor_tilt_factor;
 
 	int newPan = pan + deltaPan;
 	int newTilt = tilt + deltaTilt;
@@ -121,6 +135,8 @@ bool PTC::addRotation(double panDeg, double tiltDeg)
 		tilt = newTilt;
 	else
 		returner = false;
+
+	writePosShifted(pan, tilt);
 
 	return returner;
 }

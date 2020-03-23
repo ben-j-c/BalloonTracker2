@@ -159,6 +159,7 @@
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\BalloonTracker\PanTiltControl.cpp" />
     <ClCompile Include="..\CameraMath.cpp" />
     <ClCompile Include="..\SerialPort.cpp" />
     <ClCompile Include="pch.cpp">

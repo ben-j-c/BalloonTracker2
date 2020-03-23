@@ -8,6 +8,7 @@ namespace PTC {
 	extern int tilt;
 	void useSettings(SettingsWrapper& sw);
 	void writePos(int pan, int tilt);
+	void writePosShifted(int pan, int tilt);
 	void moveHome();
 	void disengage();
 	void shutdown();
