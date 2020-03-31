@@ -77,8 +77,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);C:\Users\Ben\Programming\ocv\include;$(SolutionDir);$(SolutionDir)include</IncludePath>
-    <LibraryPath>C:\Users\Ben\Programming\ocv\x64\vc16\lib;$(LibraryPath);</LibraryPath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(BT_OCV)\include;$(SolutionDir);$(SolutionDir)include</IncludePath>
+    <LibraryPath>$(BT_OCV)\x64\vc16\lib;$(LibraryPath);</LibraryPath>
     <ReferencePath>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\bin;$(ReferencePath)</ReferencePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
