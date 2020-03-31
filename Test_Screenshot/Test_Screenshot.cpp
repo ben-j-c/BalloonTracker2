@@ -130,7 +130,6 @@ int main(int argc, char* argv[]) {
 	if (argc > 1) {
 		cerr << "Incorrect input list" << endl;
 		cerr << "exiting..." << endl;
-		help();
 		return EXIT_FAILURE;
 	}
 
