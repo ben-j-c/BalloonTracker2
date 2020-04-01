@@ -83,9 +83,10 @@ void processFrames() {
 		imshow("Image", displayFrame);
 		if (setImage) {
 			auto date = chrono::system_clock::to_time_t(chrono::system_clock::now());
-			string output = string("out") + std::ctime(&date) + ".png";
+			string output = string("output/image") + std::to_string(date) + ".png";
 			imwrite(output, frame);
 			imshow("Screenshot", displayFrame);
+			setImage = false;
 		}
 
 		//get the input from the keyboard
