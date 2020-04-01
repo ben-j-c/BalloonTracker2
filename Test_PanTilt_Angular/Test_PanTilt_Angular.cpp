@@ -1,6 +1,3 @@
-// IPCameraTest.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
-
 // Project
 #include <FrameBuffer.h>
 #include <SettingsWrapper.h>
@@ -37,7 +34,7 @@
 #include <opencv2/cudaobjdetect.hpp>
 #include <opencv2/cudaoptflow.hpp>
 #include <opencv2/cudastereo.hpp>
-#include <opencv2/cudawarping.hpp>>
+#include <opencv2/cudawarping.hpp>
 
 using namespace cv;
 using namespace std;
@@ -46,51 +43,25 @@ using namespace std;
 FrameBuffer frameBuff(25);
 SettingsWrapper sw("../settings.json");
 
-bool setImage = false;
-int clickedX, clickedY;
-
+int pan = 90;
+int tilt = 0;
 
 char keyboard; //input from keyboard
 void help() {
 	cout
 		<< "--------------------------------------------------------------------------" << endl
-		<< "This program verifies the camera coordination" << endl
+		<< "This program verifies rotational control." << endl
 		<< endl
 		<< "Usage:" << endl
-		<< "./Coordination.exe" << endl
+		<< "./Angular.exe" << endl
 		<< "--------------------------------------------------------------------------" << endl
 		<< endl;
 }
 
 void processFrames() {
-	cuda::GpuMat gpuFrame, resized;
-	Mat displayFrame;
 	keyboard = 0;
 
 	while (keyboard != 'q' && keyboard != 27) {
-		Mat frame = frameBuff.getReadFrame();
-		cuda::GpuMat gpuFrame(frame);
-		frameBuff.readDone();
-
-		cuda::resize(gpuFrame, resized,
-			cv::Size(
-				gpuFrame.cols*0.5,
-				gpuFrame.rows*0.5));
-		
-		resized.download(displayFrame);
-		cv::drawMarker(displayFrame, cv::Point(displayFrame.cols/2, displayFrame.rows/2), cv::Scalar(255, 255));
-		imshow("Image", displayFrame);
-		if (setImage) {
-			cv::drawMarker(displayFrame, cv::Point(clickedX, clickedY), cv::Scalar(255, 0));
-			imshow("Prior Image", displayFrame);
-			double pan = CameraMath::calcPanRelative(clickedX - 2592 / 4);
-			double tilt = CameraMath::calcPanRelative(1520 / 4 - clickedY);
-			cout << pan << " " << tilt << endl;
-
-			PTC::addRotation(pan, tilt);
-			setImage = false;
-		}
-
 		//get the input from the keyboard
 		keyboard = (char)waitKey(1);
 	}
@@ -120,12 +91,12 @@ void processVideo(string videoFileName) {
 	capture.release();
 }
 
-void onClick(int ev, int x, int y, int flags, void*) {
-	if (ev == cv::EVENT_LBUTTONDOWN) {
-		clickedX = x;
-		clickedY = y;
-		setImage = true;
-	}
+void tiltCallback(int, void*) {
+	PTC::addRotation((pan - 90) - PTC::currentPan(), tilt - PTC::currentTilt());
+}
+
+void panCallback(int, void*) {
+	PTC::addRotation((pan - 90) - PTC::currentPan(), tilt - PTC::currentTilt());
 }
 
 int main(int argc, char* argv[]) {
@@ -139,16 +110,13 @@ int main(int argc, char* argv[]) {
 	}
 
 	//create GUI windows
-	namedWindow("Image");
-	namedWindow("Prior Image");
-	cv::setMouseCallback("Image", onClick);
-	CameraMath::useSettings(sw, 1520/2, 2592/2, 200);
+	namedWindow("Angular");
+	resizeWindow("Angular", 700, 100);
 	PTC::useSettings(sw);
+	cv::createTrackbar("Pan Angle", "Angular", &pan, 180, panCallback);
+	cv::createTrackbar("Tilt Angle", "Angular", &tilt, 90, tiltCallback);
 
-	//create Background Subtractor objects
-	std::thread videoReadThread(processVideo, sw.camera);
 	processFrames();
-	videoReadThread.join();
 	PTC::shutdown();
 	//destroy GUI windows
 	destroyAllWindows();

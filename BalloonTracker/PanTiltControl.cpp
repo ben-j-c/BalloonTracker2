@@ -27,10 +27,10 @@ static void delay(int ms) {
 /* Write motor positions and perform clamping within min to max (motor_pan_min in settings.json).
 */
 void PTC::writePos(int pan, int tilt) {
-	pan = max(min(pan, sw.motor_pan_max), sw.motor_pan_min);
-	tilt = max(min(tilt, sw.motor_tilt_max), sw.motor_tilt_min);
-	PTC::pan = pan - sw.motor_pan_min;
-	PTC::tilt = tilt - sw.motor_tilt_min;
+	pan = (int) max(min(pan, sw.motor_pan_max), sw.motor_pan_min);
+	tilt = (int) max(min(tilt, sw.motor_tilt_max), sw.motor_tilt_min);
+	PTC::pan = (int) (pan - sw.motor_pan_min);
+	PTC::tilt = (int) (tilt - sw.motor_tilt_min);
 
 	uint8_t writeBuffer[5];
 	writeBuffer[0] = 'p';
@@ -45,13 +45,13 @@ void PTC::writePos(int pan, int tilt) {
 /* Write motor positions, but min value is 0 and max value is (max - min).
 */
 void PTC::writePosShifted(int pan, int tilt) {
-	PTC::writePos(pan + sw.motor_pan_min, tilt + sw.motor_tilt_min);
+	PTC::writePos((int) (pan + sw.motor_pan_min),(int) (tilt + sw.motor_tilt_min));
 }
 
 /* Moves motors to motor_x_forward position (motor_pan_forward and motor_tilt_forward in settings.json).
 */
 void PTC::moveHome() {
-	PTC::writePos(sw.motor_pan_forward, sw.motor_tilt_forward);
+	PTC::writePos((int) sw.motor_pan_forward, (int) sw.motor_tilt_forward);
 }
 
 /* Disengage the motors. Checks to verify that the microcontroller received the signal.
@@ -79,8 +79,8 @@ void PTC::shutdown() {
 
 void PTC::useSettings(SettingsWrapper& wrap) {
 	sw = wrap;
-	PTC::pan = sw.motor_pan_forward - sw.motor_pan_min;
-	PTC::tilt = sw.motor_tilt_forward - sw.motor_tilt_min;
+	PTC::pan = (int) (sw.motor_pan_forward - sw.motor_pan_min);
+	PTC::tilt = (int) (sw.motor_tilt_forward - sw.motor_tilt_min);
 	std::cout << "Initial position:" << PTC::pan << " " << PTC::tilt << std::endl;
 
 	char readBuffer[BUFF_LEN] = { '\0' };
@@ -102,7 +102,7 @@ void PTC::useSettings(SettingsWrapper& wrap) {
 		std::cout << "Connection established" << std::endl;
 	else
 		exit(-1);
-	writePos(PTC::pan + sw.motor_pan_min, PTC::tilt + sw.motor_tilt_min);
+	writePos((int)(PTC::pan + sw.motor_pan_min), (int)(PTC::tilt + sw.motor_tilt_min));
 	delay(50);
 }
 
@@ -124,8 +124,8 @@ bool PTC::addRotation(double panDeg, double tiltDeg)
 	double deltaPan = panDeg * sw.motor_pan_factor;
 	double deltaTilt = -tiltDeg * sw.motor_tilt_factor;
 
-	int newPan = pan + deltaPan;
-	int newTilt = tilt + deltaTilt;
+	int newPan = (int)(pan + deltaPan);
+	int newTilt = (int)(tilt + deltaTilt);
 	if (newPan + sw.motor_pan_min <= sw.motor_pan_max && newPan >= 0)
 		pan = newPan;
 	else
@@ -141,10 +141,18 @@ bool PTC::addRotation(double panDeg, double tiltDeg)
 	return returner;
 }
 
+double PTC::currentPan() {
+	return (pan + sw.motor_pan_min - sw.motor_pan_forward) / sw.motor_pan_factor;
+}
+
+double PTC::currentTilt() {
+	return -(tilt + sw.motor_tilt_min - sw.motor_tilt_forward) / sw.motor_tilt_factor;
+}
+
 int PTC::panRange() {
-	return  sw.motor_pan_max - sw.motor_pan_min;
+	return  (int)(sw.motor_pan_max - sw.motor_pan_min);
 }
 
 int PTC::tiltRange() {
-	return  sw.motor_tilt_max - sw.motor_tilt_min;
+	return  (int)(sw.motor_tilt_max - sw.motor_tilt_min);
 }

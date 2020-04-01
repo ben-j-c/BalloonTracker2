@@ -15,6 +15,8 @@ namespace PTC {
 	void panCallback(int value, void*);
 	void tiltCallback(int value, void*);
 	bool addRotation(double pan, double tilt);
+	double currentPan();
+	double currentTilt();
 	int panRange();
 	int tiltRange();
 }
