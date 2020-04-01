@@ -23,6 +23,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test_Screenshot", "Test_Scr
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test_PanTilt_Angular", "Test_PanTilt_Angular\Test_PanTilt_Angular.vcxproj", "{5037E849-69F6-4C70-8332-BFB5A75FF37C}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test_Network_Communication", "Test_Network_Communication\Test_Network_Communication.vcxproj", "{9ACDEB57-06E4-437C-B67D-416AD7AE03D4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -103,6 +105,14 @@ Global
 		{5037E849-69F6-4C70-8332-BFB5A75FF37C}.Release|x64.Build.0 = Release|x64
 		{5037E849-69F6-4C70-8332-BFB5A75FF37C}.Release|x86.ActiveCfg = Release|Win32
 		{5037E849-69F6-4C70-8332-BFB5A75FF37C}.Release|x86.Build.0 = Release|Win32
+		{9ACDEB57-06E4-437C-B67D-416AD7AE03D4}.Debug|x64.ActiveCfg = Debug|x64
+		{9ACDEB57-06E4-437C-B67D-416AD7AE03D4}.Debug|x64.Build.0 = Debug|x64
+		{9ACDEB57-06E4-437C-B67D-416AD7AE03D4}.Debug|x86.ActiveCfg = Debug|Win32
+		{9ACDEB57-06E4-437C-B67D-416AD7AE03D4}.Debug|x86.Build.0 = Debug|Win32
+		{9ACDEB57-06E4-437C-B67D-416AD7AE03D4}.Release|x64.ActiveCfg = Release|x64
+		{9ACDEB57-06E4-437C-B67D-416AD7AE03D4}.Release|x64.Build.0 = Release|x64
+		{9ACDEB57-06E4-437C-B67D-416AD7AE03D4}.Release|x86.ActiveCfg = Release|Win32
+		{9ACDEB57-06E4-437C-B67D-416AD7AE03D4}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
