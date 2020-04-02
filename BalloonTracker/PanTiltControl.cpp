@@ -116,10 +116,7 @@ void PTC::tiltCallback(int value, void*) {
 
 bool PTC::addRotation(double panDeg, double tiltDeg)
 {
-	//double curPan = (pan + sw.motor_pan_min - sw.motor_pan_forward) / sw.motor_pan_factor;
-	//double curTilt = -(tilt + sw.motor_tilt_min - sw.motor_tilt_forward) / sw.motor_tilt_factor;
 	bool returner = true;
-
 
 	double deltaPan = panDeg * sw.motor_pan_factor;
 	double deltaTilt = -tiltDeg * sw.motor_tilt_factor;
