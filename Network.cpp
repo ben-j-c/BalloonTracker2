@@ -12,6 +12,7 @@
 #pragma comment(lib, "Ws2_32.lib")
 
 #define CERR_NOT_ENABLED "Socket not enabled. Doing nothing on function call: " << __FUNCTION__ << endl;
+#define CERR_ON_FUNC(errname) errname << "on function call: " << __FUNCTION__ << endl;
 
 static int port = 50000;
 static bool socketEnabled = false;
@@ -96,7 +97,7 @@ bool Network::acceptConnection() {
 		return false;
 	}
 	if (server == INVALID_SOCKET) {
-		cerr << "Server INVALID_SOCKET on function call: " << __FUNCTION__ << endl;
+		cerr << CERR_ON_FUNC("Server");
 		return false;
 	}
 
@@ -117,11 +118,11 @@ void Network::sendData(char * data, int len) {
 		return;
 	}
 	if (server == INVALID_SOCKET) {
-		cerr << "Server INVALID_SOCKET on function call: " << __FUNCTION__ << endl;
+		cerr << CERR_ON_FUNC("Server INVALID_SOCKET");
 		return;
 	}
 	if (client == INVALID_SOCKET) {
-		cerr << "Client INVALID_SOCKET on function call: " << __FUNCTION__ << endl;
+		cerr << CERR_ON_FUNC("Client INVALID_SOCKET");
 		return;
 	}
 
@@ -138,11 +139,11 @@ std::vector<char> Network::recvData() {
 		return std::vector<char>();
 	}
 	if (server == INVALID_SOCKET) {
-		cerr << "Server INVALID_SOCKET on function call: " << __FUNCTION__ << endl;
+		cerr << CERR_ON_FUNC("Server INVALID_SOCKET");
 		return std::vector<char>();
 	}
 	if (client == INVALID_SOCKET) {
-		cerr << "Client INVALID_SOCKET on function call: " << __FUNCTION__ << endl;
+		cerr << CERR_ON_FUNC("Client INVALID_SOCKET");
 		return std::vector<char>();
 	}
 
@@ -172,11 +173,11 @@ int Network::recvData(char * data, int len) {
 		return 0;
 	}
 	if (server == INVALID_SOCKET) {
-		cerr << "Server INVALID_SOCKET on function call: " << __FUNCTION__ << endl;
+		cerr << CERR_ON_FUNC("Server INVALID_SOCKET");
 		return 0;
 	}
 	if (client == INVALID_SOCKET) {
-		cerr << "Client INVALID_SOCKET on function call: " << __FUNCTION__ << endl;
+		cerr << CERR_ON_FUNC("Server INVALID_SOCKET");
 		return 0;
 	}
 
