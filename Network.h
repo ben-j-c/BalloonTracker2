@@ -11,12 +11,12 @@ namespace Network {
 	int recvData(char* data, int len);
 	int getBytesReady();
 	template<typename T> int sendData(std::vector<T>& data) {
-		int bytes = data.size() * sizeof(T);
-		sendData((char*)data.data(), bytes);
+		int bytes = (int) data.size() * (int) sizeof(T);
+		return sendData((char*)data.data(), bytes);
 	}
 	template<typename T> std::vector<T> recvData() {
 		int nBytes = getBytesReady();
-		int extraElements = nBytes % sizeof(T);
+		int extraElements = nBytes % (int) sizeof(T);
 		if (extraElements) {
 			std::cerr << "Received " << extraElements << "too many bytes to fit into an integer multiple of"
 				 << type_info::name(T) << ". Rounding down to nearest integer multiple." << std::endl;

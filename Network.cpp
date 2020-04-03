@@ -210,7 +210,7 @@ int Network::recvData(char * data, int len) {
 }
 
 /* Check the number of bytes recieved.
-Returns the number of bytes recieved, or -1 if no an error is thrown.
+Returns the number of bytes recieved.
 */
 int Network::getBytesReady()
 {
