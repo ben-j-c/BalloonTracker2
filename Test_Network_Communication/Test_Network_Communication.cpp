@@ -74,6 +74,7 @@ int main() {
 		cerr << "listen failed: " << WSAGetLastError() << endl;
 		closesocket(sock);
 		WSACleanup();
+		exit(EXIT_FAILURE);
 	}
 
 	int cont;

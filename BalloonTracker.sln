@@ -25,6 +25,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test_PanTilt_Angular", "Tes
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test_Network_Communication", "Test_Network_Communication\Test_Network_Communication.vcxproj", "{9ACDEB57-06E4-437C-B67D-416AD7AE03D4}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test_Network_1Hour", "Test_Network_1Hour\Test_Network_1Hour.vcxproj", "{98F01285-E3B4-4CFF-A18D-2F7539D0E77E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -113,6 +115,14 @@ Global
 		{9ACDEB57-06E4-437C-B67D-416AD7AE03D4}.Release|x64.Build.0 = Release|x64
 		{9ACDEB57-06E4-437C-B67D-416AD7AE03D4}.Release|x86.ActiveCfg = Release|Win32
 		{9ACDEB57-06E4-437C-B67D-416AD7AE03D4}.Release|x86.Build.0 = Release|Win32
+		{98F01285-E3B4-4CFF-A18D-2F7539D0E77E}.Debug|x64.ActiveCfg = Debug|x64
+		{98F01285-E3B4-4CFF-A18D-2F7539D0E77E}.Debug|x64.Build.0 = Debug|x64
+		{98F01285-E3B4-4CFF-A18D-2F7539D0E77E}.Debug|x86.ActiveCfg = Debug|Win32
+		{98F01285-E3B4-4CFF-A18D-2F7539D0E77E}.Debug|x86.Build.0 = Debug|Win32
+		{98F01285-E3B4-4CFF-A18D-2F7539D0E77E}.Release|x64.ActiveCfg = Release|x64
+		{98F01285-E3B4-4CFF-A18D-2F7539D0E77E}.Release|x64.Build.0 = Release|x64
+		{98F01285-E3B4-4CFF-A18D-2F7539D0E77E}.Release|x86.ActiveCfg = Release|Win32
+		{98F01285-E3B4-4CFF-A18D-2F7539D0E77E}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
