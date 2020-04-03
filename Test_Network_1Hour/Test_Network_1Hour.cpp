@@ -18,11 +18,11 @@ int main() {
 	Network::startServer();
 	Network::acceptConnection();
 
-	std::vector<double> data(25 * 3 * 3);
+	std::vector<double> data(25 * 3 * 3); //25 FPS, 3 doubles per frame, 3 seconds
 	for (int i = 0; i < data.size(); i++) {
 		data[i] = i;
 	}
-	for (int i = 0; i < 3600; i++) {
+	for (int i = 0; i < 1200; i++) {
 		std::cout << "Sending 3 second frame pack." << std::endl;
 		Network::sendData(data);
 		std::this_thread::sleep_for(std::chrono::milliseconds(50));
