@@ -16,6 +16,7 @@
 
 static int port = 50000;
 static bool socketEnabled = false;
+
 static SOCKET client = INVALID_SOCKET;
 static SOCKET server = INVALID_SOCKET;
 
@@ -28,13 +29,16 @@ void Network::useSettings(SettingsWrapper & sw) {
 	socketEnabled = sw.socket_enable;
 }
 
-bool Network::startServer() {
+/* Get server to listening state and ready to accept connections.
+Returns -1 on error, 0 otherwise.
+*/
+int Network::startServer() {
 	if (socketEnabled) {
 		WSADATA wsaData;
 		int err = WSAStartup(MAKEWORD(2, 2), &wsaData);
 		if (err) {
 			cerr << "WSAStartup failed: " << err << endl;
-			return false;
+			return -1;
 		}
 
 		struct addrinfo *result = NULL, *ptr = NULL, hints;
@@ -49,7 +53,7 @@ bool Network::startServer() {
 			if (err) {
 				WSACleanup();
 				cerr << "getaddrinfo failed: " << err << endl;
-				return false;
+				return -1;
 			}
 		}
 
@@ -59,7 +63,7 @@ bool Network::startServer() {
 			cerr << "socket failed: " << WSAGetLastError() << endl;
 			freeaddrinfo(result);
 			WSACleanup();
-			return false;
+			return -1;
 		}
 
 		err = bind(server, result->ai_addr, (int)result->ai_addrlen);
@@ -70,7 +74,7 @@ bool Network::startServer() {
 			server = INVALID_SOCKET;
 			freeaddrinfo(result);
 			WSACleanup();
-			return false;
+			return -1;
 		}
 
 		freeaddrinfo(result);
@@ -80,59 +84,70 @@ bool Network::startServer() {
 			closesocket(server);
 			server = INVALID_SOCKET;
 			WSACleanup();
-			return false;
+			return -1;
 		}
 
-		return true;
+		return 0;
 	}
 	else {
 		cerr << CERR_NOT_ENABLED;
-		return false;
+		return -1;
 	}
 }
 
-bool Network::acceptConnection() {
+/* Accept client connection.
+Returns -1 on error, 0 otherwise.
+*/
+int Network::acceptConnection() {
 	if (!socketEnabled) {
 		cerr << CERR_NOT_ENABLED;
-		return false;
+		return -1;
 	}
 	if (server == INVALID_SOCKET) {
 		cerr << CERR_ON_FUNC("Server");
-		return false;
+		return -1;
 	}
 
 	client = accept(server, NULL, NULL);
 
 	if (client == INVALID_SOCKET) {
 		cerr << "Failed to accept connection." << endl;
-		return false;
+		return -1;
 	}
 
 	cout << "Connection successful" << endl;
-	return true;
+	return 0;
 }
 
-void Network::sendData(char * data, int len) {
+
+/* Send len number of bytes pointed to by data.
+Returns -1 on error, 0 otherwise.
+*/
+int Network::sendData(char * data, int len) {
 	if (!socketEnabled) {
 		cerr << CERR_NOT_ENABLED;
-		return;
+		return -1;
 	}
 	if (server == INVALID_SOCKET) {
 		cerr << CERR_ON_FUNC("Server INVALID_SOCKET");
-		return;
+		return -1;
 	}
 	if (client == INVALID_SOCKET) {
 		cerr << CERR_ON_FUNC("Client INVALID_SOCKET");
-		return;
+		return -1;
 	}
 
 	int err = send(client, data, len, 0);
 	if (err == SOCKET_ERROR) {
 		cerr << "Sending data failed: " << WSAGetLastError() << endl;
-		return;
+		return -1;
 	}
+	return 0;
 }
 
+/* Get all bytes recieved.
+Returns vector of chars recieved. Will be empty if error or no bytes.
+*/
 std::vector<char> Network::recvData() {
 	if (!socketEnabled) {
 		cerr << CERR_NOT_ENABLED;
@@ -167,18 +182,21 @@ std::vector<char> Network::recvData() {
 	return returner;
 }
 
+/* Store upto len bytes in the location pointed to by data.
+Returns the number of bytes actually read, or -1 if an error.
+*/
 int Network::recvData(char * data, int len) {
 	if (!socketEnabled) {
 		cerr << CERR_NOT_ENABLED;
-		return 0;
+		return -1;
 	}
 	if (server == INVALID_SOCKET) {
 		cerr << CERR_ON_FUNC("Server INVALID_SOCKET");
-		return 0;
+		return -1;
 	}
 	if (client == INVALID_SOCKET) {
 		cerr << CERR_ON_FUNC("Server INVALID_SOCKET");
-		return 0;
+		return -1;
 	}
 
 	int nBytesActual = recv(client, data, len, 0);
@@ -191,6 +209,9 @@ int Network::recvData(char * data, int len) {
 
 }
 
+/* Check the number of bytes recieved.
+Returns the number of bytes recieved, or -1 if no an error is thrown.
+*/
 int Network::getBytesReady()
 {
 	u_long nBytes;

@@ -4,13 +4,13 @@
 
 namespace Network {
 	void useSettings(SettingsWrapper &sw);
-	bool startServer();
-	bool acceptConnection();
-	void sendData(char* data, int len);
+	int startServer();
+	int acceptConnection();
+	int sendData(char* data, int len);
 	std::vector<char> recvData();
 	int recvData(char* data, int len);
 	int getBytesReady();
-	template<typename T> void sendData(std::vector<T>& data) {
+	template<typename T> int sendData(std::vector<T>& data) {
 		int bytes = data.size() * sizeof(T);
 		sendData((char*)data.data(), bytes);
 	}
