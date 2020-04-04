@@ -143,20 +143,15 @@ classdef CapstoneUI_exported < matlab.apps.AppBase
 			t = tcpclient('localhost', 50000);
 			fprintf('Connected to server...\n');
 			while(strcmp(app.StopButton.Enable, 'on'))
-				if(t.BytesAvailable >= 75*3*8)
-					app.x = [app.x; read(t, 75, 'double')'];
-					app.y = [app.y; read(t, 75, 'double')'];
-					app.z = [app.z; read(t, 75, 'double')'];
+				if(t.BytesAvailable >= 75*3*3)
+					app.x = [app.x read(t, 75, 'double')];
+					app.y = [app.y read(t, 75, 'double')];
+					app.z = [app.z read(t, 75, 'double')];
 					
-					T = table(app.x,app.y,app.z,app.z,'VariableNames', {'Time', 'Altitude', 'Direction', 'Speed'});
-					app.UITable.Data = T;
-					ti  = 1:numel(app.x);
-					scatter(app.UIAxes, ti, app.x ,'filled');
-					scatter(app.UIAxes_3, ti, app.x,'filled');
-					scatter(app.UIAxes_2, ti, app.y,'filled');
-					scatter(app.UIAxes_4, ti, app.z,'filled');
+					app.UITable.Data{:,3}
+					
 				end
-				pause(0.5);
+				sleep(0.05);
 			end
 		end
 		
