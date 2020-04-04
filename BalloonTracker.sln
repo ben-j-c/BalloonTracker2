@@ -14,6 +14,11 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "IPCameraTest", "IPCameraTest\IPCameraTest.vcxproj", "{0439C1DA-A0FB-4A47-8DC5-68FDCC98C286}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{4F6B5587-A25B-4503-8B30-1736878AB9BE}"
+	ProjectSection(SolutionItems) = preProject
+		ui\CapstoneUI_exported.m = ui\CapstoneUI_exported.m
+		ui\play.png = ui\play.png
+		ui\stop.png = ui\stop.png
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test_PanTilt_video", "Test_PanTilt_video\Test_PanTilt_video.vcxproj", "{E5845811-96BC-4D6A-8208-476522E1B0B9}"
 EndProject
