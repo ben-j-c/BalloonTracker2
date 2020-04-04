@@ -22,8 +22,11 @@ int main() {
 	for (int i = 0; i < data.size(); i++) {
 		data[i] = i;
 	}
+	std::cout << "Sending 3 second frame pack.";
+
 	for (int i = 0; i < 1200; i++) {
-		std::cout << "Sending 3 second frame pack." << std::endl;
+		backspace(100);
+		std::cout << "Sending 3 second frame pack. " << i << "/" << "1200";
 		Network::sendData(data);
 		std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	}
