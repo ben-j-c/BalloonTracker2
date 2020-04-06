@@ -27,6 +27,8 @@ public:
 	double sensor_height;
 	double focal_length_min;
 	double focal_length_max;
+	double principal_x;
+	double principal_y;
 	double image_resize_factor;
 	uint8_t thresh_red;
 	uint8_t thresh_s;
@@ -63,6 +65,8 @@ private:
 		assert(d.HasMember("sensor_height"));
 		assert(d.HasMember("focal_length_min"));
 		assert(d.HasMember("focal_length_max"));
+		assert(d.HasMember("principal_x"));
+		assert(d.HasMember("principal_y"));
 		assert(d.HasMember("image_resize_factor"));
 		assert(d.HasMember("thresh_red"));
 		assert(d.HasMember("thresh_s"));
@@ -100,6 +104,8 @@ private:
 		assert(d["sensor_height"].IsDouble());
 		assert(d["focal_length_min"].IsDouble());
 		assert(d["focal_length_max"].IsDouble());
+		assert(d["principal_x"].IsDouble());
+		assert(d["principal_y"].IsDouble());
 		assert(d["image_resize_factor"].IsDouble());
 		assert(d["thresh_red"].IsInt());
 		assert(d["thresh_s"].IsInt());
@@ -138,6 +144,8 @@ private:
 		sensor_height = d["sensor_height"].GetDouble();
 		focal_length_min = d["focal_length_min"].GetDouble();
 		focal_length_max = d["focal_length_max"].GetDouble();
+		principal_x = d["principal_x"].GetDouble();
+		principal_y = d["principal_y"].GetDouble();
 		image_resize_factor = d["image_resize_factor"].GetDouble();
 		thresh_red = d["thresh_red"].GetInt();
 		thresh_s = d["thresh_s"].GetInt();

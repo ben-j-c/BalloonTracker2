@@ -3,6 +3,8 @@
 #include "SettingsWrapper.h"
 
 namespace CameraMath {
+	struct pos { double x, y, z; };
+
 	/* Initialize camera math calculations
 	sw : loaded from the settigs file
 	imageHeight : number of rows in the image
@@ -28,6 +30,8 @@ namespace CameraMath {
 	*/
 	double calcRadialDistance(double pxSize, double pxX, double pxY);
 
+	CameraMath::pos calcAbsPos(double pxX, double pxY, double area, double pan, double tilt);
+
 	/* Calculate the pan rotation of the balloon relative to the camera
 	pxX : the column of the mean pixel of the balloon
 	*/
@@ -37,7 +41,6 @@ namespace CameraMath {
 	pxY : the row of the mean pixel of the balloon
 	*/
 	double calcTiltRelative(double pxY);
-	struct pos { double x, y, z; };
 
 	/* Convert from a spherical coordinate system to cartesian coordinate system
 	pan : degrees
@@ -54,4 +57,25 @@ namespace CameraMath {
 	tilt : tilt in degrees
 	*/
 	pos calcRelativePos(double area, double pxX, double pxY, double pan, double tilt);
+
+	/* Calculates the vector pointing from the origin (center of the camera) to the pixel.
+	pxX : the column of the mean pixel of the balloon
+	pxY : the row of the mean pixel of the balloon
+	pan : pan in degrees
+	tilt : tilt in degrees
+
+	The coordinate system is the camera coordinate system, i.e.,:
+	+x : right
+	-y : up
+	-z : forward
+	*/
+	CameraMath::pos calcDirection(double pxX, double pxY, double pan, double tilt);
+
+	/* Given a real world location, calculate the pan in degrees.
+	*/
+	double calcPan(CameraMath::pos & loc);
+
+	/* Given a real world location, calculate the tilt in degrees.
+	*/
+	double calcTilt(CameraMath::pos & loc);
 }

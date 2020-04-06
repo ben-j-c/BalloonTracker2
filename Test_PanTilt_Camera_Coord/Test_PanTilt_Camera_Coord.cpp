@@ -83,11 +83,14 @@ void processFrames() {
 		if (setImage) {
 			cv::drawMarker(displayFrame, cv::Point(clickedX, clickedY), cv::Scalar(255, 0));
 			imshow("Prior Image", displayFrame);
-			double pan = CameraMath::calcPanRelative(clickedX - 2592 / 4);
-			double tilt = CameraMath::calcPanRelative(1520 / 4 - clickedY);
+
+			CameraMath::pos dir = CameraMath::calcDirection(clickedX*2, clickedY*2, PTC::currentPan(), PTC::currentTilt());
+			double pan = CameraMath::calcPan(dir);
+			double tilt = CameraMath::calcTilt(dir);
+
 			cout << pan << " " << tilt << endl;
 
-			PTC::addRotation(pan, tilt);
+			PTC::addRotation(-pan - PTC::currentPan(), tilt - PTC::currentTilt());
 			setImage = false;
 		}
 
@@ -142,7 +145,7 @@ int main(int argc, char* argv[]) {
 	namedWindow("Image");
 	namedWindow("Prior Image");
 	cv::setMouseCallback("Image", onClick);
-	CameraMath::useSettings(sw, 1520/2, 2592/2, 200);
+	CameraMath::useSettings(sw, 1520, 2592, 40);
 	PTC::useSettings(sw);
 
 	//create Background Subtractor objects

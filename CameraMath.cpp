@@ -6,15 +6,16 @@
 
 #include <math.h>
 
-
 static double
 	imHeight, //pixels
 	imWidth, //pixels
-	f, // mm
+	f, //mm
 	sensorW, //mm
 	sensorH, //mm
 	balloonSpan, //mm
-	sigma; //mm/px pixel size
+	sigma, //mm/px pixel size
+	cx, //principal point x
+	cy;
 
 static CameraMath::pos getCoordinates(double pxSize, double pxX, double pxY) {
 	double z = CameraMath::calcDistance(pxSize);
@@ -29,6 +30,8 @@ void CameraMath::useSettings(SettingsWrapper & sw, int imageHeight, int imageWid
 	f = sw.focal_length_min;
 	sensorW = sw.sensor_width;
 	sensorH = sw.sensor_height;
+	cx = imWidth/2;
+	cy = imHeight/2;
 	balloonSpan = 10.0 * balloonCircumference * M_1_PI;
 	sigma = sensorW / imWidth;
 }
@@ -46,31 +49,41 @@ double CameraMath::calcRadialDistance(double pxSize, double pxX, double pxY) {
 	return sqrt(r.z*r.z + r.x*r.x + r.y*r.y);
 }
 
-inline double CameraMath::calcPanRelative(double pxX) {
-	return atan(sigma * pxX / f) * M_1_PI * 180.0;
+CameraMath::pos CameraMath::calcAbsPos(double pxX, double pxY, double area, double pan, double tilt) {
+	pos ret = calcDirection(pxX, pxY, pan, tilt);
+	double pxSize = calcDiameter(area);
+	double r = calcRadialDistance(pxSize, pxX, pxY);
+	ret.x *= r;
+	ret.y *= r;
+	ret.z *= r;
+	return ret;
 }
 
-inline double CameraMath::calcTiltRelative(double pxY) {
-	return atan(sigma * pxY / f) * M_1_PI * 180.0;
+CameraMath::pos CameraMath::calcDirection(double pxX, double pxY, double pan, double tilt) {
+	double fPx = f / sigma; // focal length in pixels
+
+	//Multiplication of augmented pixel location with inverse intrinsic
+	double crx = pxX / fPx - cx / fPx; //camera relative x
+	double cry = pxY / fPx - cy / fPx;
+	double crz = 1.0;
+
+	double theta = pan * M_PI / 180.0;
+	double phi = tilt * M_PI / 180.0;
+
+	//Multiplication by inverse extrinsic matrix
+	double x = crx*cos(theta) + cry*sin(phi)*sin(theta) + crz*cos(phi)*sin(theta);
+	double y = cry*cos(phi) - crz*sin(phi);
+	double z = -crx*sin(theta) + cry*sin(phi)*cos(theta) + crz*cos(phi)*cos(theta);
+
+	double mag = sqrt(x*x + y*y + z*z);
+
+	return { x/mag, -y/mag, -z/mag };
 }
 
-CameraMath::pos CameraMath::calcRelativePos(double pan, double tilt, double radial) {
-	pos returner;
-
-	//Forward : +x
-	//Left : +y
-	//Up : +z
-	returner.z = radial * sin(tilt * M_PI / 180.0);
-	returner.x = radial * cos(tilt * M_PI / 180.0) * cos(pan * M_PI / 180.0);
-	returner.y = radial * cos(tilt * M_PI / 180.0) * sin(pan * M_PI / 180.0);
-
-	return returner;
+double CameraMath::calcPan(CameraMath::pos &loc) {
+	return atan(loc.x / loc.z)*180.0*M_1_PI;
 }
 
-CameraMath::pos CameraMath::calcRelativePos(double area, double pxX, double pxY, double pan, double tilt) {
-	double pxSize = CameraMath::calcDiameter(area);
-	pan += CameraMath::calcPanRelative(pxX);
-	tilt += CameraMath::calcTiltRelative(pxY);
-	double r = CameraMath::calcRadialDistance(pxSize, pxX, pxY);
-	return CameraMath::calcRelativePos(pan, tilt, r);
+double CameraMath::calcTilt(CameraMath::pos &loc) {
+	return atan(loc.y / sqrt(loc.x*loc.x + loc.z*loc.z))*180.0*M_1_PI;
 }
