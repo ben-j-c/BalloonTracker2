@@ -17,7 +17,7 @@ using std::cerr;
 using std::cout;
 using std::endl;
 
-double sendArray[] = {1.0, 2.0, 0.0, 3.14, 365.25, NAN, INFINITY};
+double sendArray[] = {1.0, 2.0, 0.0, 3.14, 365.25, NAN, INFINITY, -INFINITY};
 
 int main() {
 	int buffLen = sizeof(sendArray);
