@@ -54,6 +54,8 @@ auto initialDelay = chrono::seconds(35);
 double bearing = 0;
 
 namespace Motor {
+	bool inMotion, newDesire;
+	queue<bool> motionHistory;
 	queue<MotorPos> history;
 	mutex mutex_setPos, mutex_desiredPos;
 	MotorPos setPos, desiredPos;
@@ -117,22 +119,26 @@ void rgChroma(cuda::GpuMat image, std::vector<cuda::GpuMat>& chroma) {
 void sendData(double pxX, double pxY, double area) {
 	Motor::mutex_setPos.lock();
 	Motor::history.push(Motor::setPos);
+	Motor::motionHistory.push(Motor::inMotion);
 	Motor::mutex_setPos.unlock();
 	MotorPos mp = Motor::history.front();
+	bool inMotion = Motor::motionHistory.front();
 	Motor::history.pop();
+	Motor::motionHistory.pop();
 
 	CameraMath::pos pos = CameraMath::calcAbsPos(pxX, pxY, area, mp.pan, mp.tilt);
 	double pan = CameraMath::calcPan(pos);
 	double tilt = CameraMath::calcTilt(pos);
 
-	if (abs(mp.pan - pan) > 5 || abs(mp.tilt - tilt) > 5) {
+	if ((abs(mp.pan - pan) > 5 || abs(mp.tilt - tilt) > 5) && !inMotion) {
 		Motor::mutex_desiredPos.lock();
 		Motor::desiredPos = { pan, tilt };
+		Motor::newDesire = true;
 		Motor::mutex_desiredPos.unlock();
 	}
 }
 
-/* Every 50 ms update the position of the motors.
+/* Every 120 ms update the position of the motors.
 Sets the motor position to the disired position, waits 50 ms, and then updates the set position
 */
 void updatePTC() {
@@ -142,12 +148,17 @@ void updatePTC() {
 		if ((timeNow() - startTime) >= initialDelay) {
 			Motor::mutex_desiredPos.lock();
 			mp = Motor::desiredPos;
+			bool nd = Motor::newDesire;
 			Motor::mutex_desiredPos.unlock();
 
-			PTC::addRotation(-mp.pan - PTC::currentPan(),
-				mp.tilt - PTC::currentTilt());
+			if (nd) {
+				PTC::addRotation(-mp.pan - PTC::currentPan(),
+					mp.tilt - PTC::currentTilt());
+				Motor::inMotion = true;
+			}
 		}
-		delay(50);
+		delay(120);
+		Motor::inMotion = false;
 
 		Motor::mutex_setPos.lock();
 		Motor::setPos = mp;
@@ -204,7 +215,7 @@ void processFrames() {
 			else {
 				std::chrono::duration<double> deltaT = (timeNow() - startTime);
 				cv::putText(displayFrame, to_string(deltaT.count()),
-					Point(5, 50), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(255, 0, 255, 0), 1.5);
+					Point(5, 50), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(255, 0, 255, 0), 2);
 			}
 		}
 		else {
@@ -270,6 +281,7 @@ int main(int argc, char* argv[]) {
 
 	for (int i = 0; i < sw.motor_buffer_depth; i++) {
 		Motor::history.push({ 0, 0 });
+		Motor::motionHistory.push(false);
 	}
 
 	//Create reading thread
