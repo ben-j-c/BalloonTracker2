@@ -74,6 +74,7 @@ void PTC::shutdown() {
 	PTC::moveHome();
 	delay(500);
 	PTC::disengage();
+	delete ardy;
 }
 
 void PTC::useSettings(SettingsWrapper& wrap) {
