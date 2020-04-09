@@ -10,7 +10,7 @@ namespace Network {
 	std::vector<char> recvData();
 	int recvData(char* data, int len);
 	int getBytesReady();
-	template<typename T> int sendData(std::vector<T>& data) {
+	template<typename T> int sendData(const std::vector<T>& data) {
 		int bytes = (int) data.size() * (int) sizeof(T);
 		return sendData((char*)data.data(), bytes);
 	}

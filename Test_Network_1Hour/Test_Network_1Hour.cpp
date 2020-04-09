@@ -19,7 +19,7 @@ int main() {
 	Network::acceptConnection();
 	std::cout << "Client connected" << std::endl;
 
-	std::vector<double> data(25 * 3 * 3); //25 FPS, 3 doubles per frame, 3 seconds
+	std::vector<double> data(25 * 3 * 4); //25 FPS, 3 doubles per frame, 3 seconds
 	for (int i = 0; i < data.size(); i++) {
 		data[i] = i;
 	}

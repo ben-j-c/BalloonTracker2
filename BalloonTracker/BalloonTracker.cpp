@@ -5,9 +5,13 @@
 #include "FrameBuffer.h"
 #include "SettingsWrapper.h"
 #include "PanTiltControl.h"
+#include <CameraMath.h>
+#include <Network.h>
+#include <rapidjson/document.h>
 
 // C/C++
 #include <vector>
+#include <queue>
 #include <string>
 #include <iostream>
 #include <sstream>
@@ -41,13 +45,19 @@
 using namespace cv;
 using namespace std;
 
+struct MotorPos {
+	double pan, tilt;
+};
+
 // Global variables
 FrameBuffer frameBuff(25);
 SettingsWrapper sw("../settings.json");
-
-int SThresh = 91;
-int RThresh = 103;
-
+queue<MotorPos> positionBuffer;
+CameraMath::pos lastPos;
+static int frameCount = 0;
+double initialDelay = 5;
+double bearing = 0;
+vector<double> outboundData(1);
 
 char keyboard; //input from keyboard
 void help() {
@@ -59,6 +69,10 @@ void help() {
 		<< "./BalloonTracker.exe" << endl
 		<< "--------------------------------------------------------------------------" << endl
 		<< endl;
+}
+
+void delay(int ms) {
+	std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 }
 
 void rgChroma(cuda::GpuMat image, std::vector<cuda::GpuMat>& chroma) {
@@ -88,6 +102,45 @@ void rgChroma(cuda::GpuMat image, std::vector<cuda::GpuMat>& chroma) {
 	chroma[3].clone().convertTo(chroma[3], CV_8U, 1.0 / 3.0);
 }
 
+/* Given the balloon size and position calculate where the motors should be and 
+*/
+MotorPos sendData(double pxX, double pxY, double area) {
+	MotorPos mp = positionBuffer.front();
+	positionBuffer.pop();
+
+	CameraMath::pos pos = CameraMath::calcAbsPos(pxX, pxY, area, mp.pan, mp.tilt);
+	double pan = CameraMath::calcPan(pos);
+	double tilt = CameraMath::calcTilt(pos);
+
+	positionBuffer.push({ pan, tilt });
+
+	if (frameCount != 0) {
+		CameraMath::pos dv;
+		dv.x = pos.x - lastPos.x;
+		dv.y = pos.y - lastPos.y;
+		dv.z = pos.z - lastPos.z;
+		double time = frameCount / 25.0;
+		double altitude = pos.y;
+		double direction = atan2(-dv.z, dv.x)*180.0*M_1_PI + bearing;
+		double speed = sqrt(dv.x*dv.x + dv.y*dv.y + dv.z*dv.z);
+
+		outboundData.push_back(time);
+		outboundData.push_back(altitude);
+		outboundData.push_back(direction);
+		outboundData.push_back(speed);
+		if (frameCount % 25) {
+			int words = outboundData.size() / 4;
+			Network::sendData((char*) &words, 4);
+			Network::sendData(outboundData);
+			outboundData.clear();
+		}
+	}
+
+	lastPos = pos;
+
+	return {pan, tilt};
+}
+
 void processFrames() {
 	cuda::GpuMat gpuFrame, resized, blob;
 	std::vector<cuda::GpuMat> chroma(4);
@@ -105,9 +158,11 @@ void processFrames() {
 				gpuFrame.rows*sw.image_resize_factor));
 		rgChroma(resized, chroma);
 		cuda::threshold(chroma[0], chroma[0], sw.thresh_red, 255, THRESH_BINARY);
+		cuda::threshold(chroma[1], chroma[1], sw.thresh_green, 255, THRESH_BINARY);
 		cuda::threshold(chroma[3], chroma[3], sw.thresh_s, 255, THRESH_BINARY);
 
 		cuda::bitwise_and(chroma[3], chroma[0], blob);
+		cuda::bitwise_and(chroma[1], blob, blob);
 
 
 		std::vector<cv::Point> loc;
@@ -122,9 +177,18 @@ void processFrames() {
 			cv::drawMarker(displayFrame, cv::Point2i(mean[0], mean[1] + pxRadius), cv::Scalar(255, 0, 0, 0), 0, 10, 1);
 			cv::drawMarker(displayFrame, cv::Point2i(mean[0], mean[1] - pxRadius), cv::Scalar(255, 0, 0, 0), 0, 10, 1);
 			
+			double pxX = mean[0] / sw.image_resize_factor;
+			double pxY = mean[1] / sw.image_resize_factor;
+			double area = loc.size() / (sw.image_resize_factor * sw.image_resize_factor);
+
+			MotorPos mp = sendData(pxX, pxY, area);
+
+			PTC::addRotation(-mp.pan - PTC::currentPan(), mp.tilt - PTC::currentTilt());
 		}
 		else {
 			cout << "No pixels found" << endl;
+			keyboard = 'q';
+			break;
 		}
 
 		imshow("Image", displayFrame);
@@ -132,9 +196,13 @@ void processFrames() {
 		blob.download(displayFrame);
 		imshow("blob", displayFrame);
 
+
+		frameCount++;
 		//get the input from the keyboard
 		keyboard = (char)waitKey(1);
 	}
+	//Send -1 to denote end of stream
+	Network::sendData<int>(std::vector<int>(1, -1));
 }
 
 void processVideo(string videoFileName) {
@@ -174,10 +242,40 @@ int main(int argc, char* argv[]) {
 	//create GUI windows
 	namedWindow("Image");
 	namedWindow("blob");
-	//create Background Subtractor objects
+	
+	//Setup configuration
+	Network::useSettings(sw);
+	Network::startServer();
+	Network::acceptConnection();
+	delay(250); //Wait so MATLAB can send input params
+	std::vector<char> clientParams = Network::recvData();
+
+	//Parse and validate the existance of params
+	Document d;
+	d.Parse(clientParams.data());
+	if (~d.HasMember("circumference") || ~d.HasMember("delay") || ~d.HasMember("bearing")) {
+		Network::sendData("missing members", 15);
+		return EXIT_FAILURE;
+	}
+
+	for (int i = 0; i < sw.motor_buffer_depth; i++) {
+		positionBuffer.push({ 0,0 });
+	}
+
+	PTC::useSettings(sw);
+	CameraMath::useSettings(sw, 1520, 2592, d["circumference"].GetDouble());
+	bearing = d["bearing"].GetDouble();
+
+	//Create reading thread
 	std::thread videoReadThread(processVideo, sw.camera);
+	//Jump to processing function
 	processFrames();
+	//On exit wait for reading thread
 	videoReadThread.join();
+	//Cleanup
+	PTC::shutdown();
+	Network::shutdownServer();
+
 	//destroy GUI windows
 	destroyAllWindows();
 	return EXIT_SUCCESS;
