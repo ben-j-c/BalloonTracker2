@@ -39,7 +39,6 @@ void PTC::writePos(int pan, int tilt) {
 	writeBuffer[3] = tilt & 0xFF;
 	writeBuffer[4] = (tilt >> 8) & 0xFF;
 	ardy->writeSerialPort((char*)writeBuffer, 5);
-	delay(50);
 }
 
 /* Write motor positions, but min value is 0 and max value is (max - min).
