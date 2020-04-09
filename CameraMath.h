@@ -66,7 +66,7 @@ namespace CameraMath {
 
 	The coordinate system is the camera coordinate system, i.e.,:
 	+x : right
-	-y : up
+	+y : up
 	-z : forward
 	*/
 	CameraMath::pos calcDirection(double pxX, double pxY, double pan, double tilt);

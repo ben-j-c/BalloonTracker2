@@ -6,7 +6,7 @@ namespace Network {
 	void useSettings(SettingsWrapper &sw);
 	int startServer();
 	int acceptConnection();
-	int sendData(char* data, int len);
+	int sendData(const char* data, int len);
 	std::vector<char> recvData();
 	int recvData(char* data, int len);
 	int getBytesReady();
@@ -27,4 +27,6 @@ namespace Network {
 
 		return returner;
 	}
+	int disconnectClient();
+	int shutdownServer();
 }

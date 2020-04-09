@@ -45,15 +45,16 @@ using namespace std;
 FrameBuffer frameBuff(25);
 SettingsWrapper sw("../settings.json");
 
-int SThresh = 91;
-int RThresh = 103;
+int SThresh = 82;
+int RThresh = 106;
+int GThresh = 75;
 
 
 char keyboard; //input from keyboard
 void help() {
 	cout
 		<< "--------------------------------------------------------------------------" << endl
-		<< "This program attempts to connect to the IP camera using OpenCV" << endl
+		<< "This program is used to calibrate the colour thresholds" << endl
 		<< endl
 		<< "Usage:" << endl
 		<< "./IPCameraTest.exe" << endl
@@ -102,9 +103,11 @@ void processFrames() {
 		cuda::resize(gpuFrame, resized, cv::Size(gpuFrame.cols / 4, gpuFrame.rows / 4));
 		rgChroma(resized, chroma);
 		cuda::threshold(chroma[0], chroma[0], RThresh, 255, THRESH_BINARY);
+		cuda::threshold(chroma[1], chroma[1], GThresh, 255, THRESH_BINARY_INV);
 		cuda::threshold(chroma[3], chroma[3], SThresh, 255, THRESH_BINARY);
 
 		cuda::bitwise_and(chroma[3], chroma[0], blob);
+		cuda::bitwise_and(blob, chroma[1], blob);
 
 
 		std::vector<cv::Point> loc;
@@ -119,7 +122,7 @@ void processFrames() {
 			cv::drawMarker(displayFrame, cv::Point2i(mean[0], mean[1]+radius), cv::Scalar(255, 0, 0, 0), 0, 10, 1);
 			cv::drawMarker(displayFrame, cv::Point2i(mean[0], mean[1]-radius), cv::Scalar(255, 0, 0, 0), 0, 10, 1);
 			string s = std::to_string(mean[0]) + " " + std::to_string(mean[1]);
-			cv::putText(displayFrame, s, Point(10, 10), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(255, 0, 0, 0));
+			cv::putText(displayFrame, s, Point(10, 10), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(255, 0, 255, 0));
 		}
 		else {
 			cv::putText(displayFrame, "No blob found", Point(10, 10), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(255, 0, 0, 0));
@@ -177,14 +180,6 @@ void processVideo(string videoFileName) {
 	grabbingThread.unlock();
 }
 
-void SThreshSet(int v, void*) {
-	SThresh = v;
-}
-
-void RThreshSet(int v, void*) {
-	RThresh = v;
-}
-
 int main(int argc, char* argv[]) {
 	//print help information
 	help();
@@ -198,8 +193,9 @@ int main(int argc, char* argv[]) {
 	//create GUI windows
 	namedWindow("Image");
 	namedWindow("blob");
-	createTrackbar("S Thresh", "blob", &SThresh, 255, SThreshSet);
-	createTrackbar("R Thresh", "blob", &RThresh, 255, SThreshSet);
+	createTrackbar("S Thresh", "blob", &SThresh, 255, nullptr);
+	createTrackbar("R Thresh", "blob", &RThresh, 255, nullptr);
+	createTrackbar("G Thresh", "blob", &GThresh, 255, nullptr);
 
 	PTC::useSettings(sw);
 	createTrackbar("Pan", "Image", &PTC::pan, PTC::panRange(), PTC::panCallback);

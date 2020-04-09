@@ -32,6 +32,7 @@ public:
 	double image_resize_factor;
 	uint8_t thresh_red;
 	uint8_t thresh_s;
+	uint8_t thresh_green;
 
 	double motor_pan_factor;
 	double motor_pan_min;
@@ -41,6 +42,7 @@ public:
 	double motor_tilt_min;
 	double motor_tilt_max;
 	double motor_tilt_forward;
+	uint32_t motor_buffer_depth;
 
 	bool show_frame_rgb;
 	bool show_frame_mask;
@@ -70,6 +72,7 @@ private:
 		assert(d.HasMember("image_resize_factor"));
 		assert(d.HasMember("thresh_red"));
 		assert(d.HasMember("thresh_s"));
+		assert(d.HasMember("thresh_green"));
 
 		assert(d.HasMember("motor_pan_factor"));
 		assert(d.HasMember("motor_pan_min"));
@@ -79,6 +82,7 @@ private:
 		assert(d.HasMember("motor_tilt_min"));
 		assert(d.HasMember("motor_tilt_max"));
 		assert(d.HasMember("motor_tilt_forward"));
+		assert(d.HasMember("motor_buffer_depth"));
 
 
 		assert(d.HasMember("show_frame_rgb"));
@@ -107,8 +111,9 @@ private:
 		assert(d["principal_x"].IsDouble());
 		assert(d["principal_y"].IsDouble());
 		assert(d["image_resize_factor"].IsDouble());
-		assert(d["thresh_red"].IsInt());
-		assert(d["thresh_s"].IsInt());
+		assert(d["thresh_red"].IsUint());
+		assert(d["thresh_s"].IsUint());
+		assert(d["thresh_green"].IsUint());
 
 		assert(d["motor_pan_factor"].IsDouble());
 		assert(d["motor_pan_min"].IsDouble());
@@ -118,6 +123,7 @@ private:
 		assert(d["motor_tilt_min"].IsDouble());
 		assert(d["motor_tilt_max"].IsDouble());
 		assert(d["motor_tilt_forward"].IsDouble());
+		assert(d["motor_buffer_depth"].IsUint());
 
 		assert(d["show_frame_rgb"].IsBool());
 		assert(d["show_frame_mask"].IsBool());
@@ -147,8 +153,10 @@ private:
 		principal_x = d["principal_x"].GetDouble();
 		principal_y = d["principal_y"].GetDouble();
 		image_resize_factor = d["image_resize_factor"].GetDouble();
-		thresh_red = d["thresh_red"].GetInt();
-		thresh_s = d["thresh_s"].GetInt();
+		thresh_red = d["thresh_red"].GetUint();
+		thresh_s = d["thresh_s"].GetUint();
+		thresh_green = d["thresh_green"].GetUint();
+
 
 		motor_pan_factor = d["motor_pan_factor"].GetDouble();
 		motor_pan_min = d["motor_pan_min"].GetDouble();
@@ -158,6 +166,7 @@ private:
 		motor_tilt_min = d["motor_tilt_min"].GetDouble();
 		motor_tilt_max = d["motor_tilt_max"].GetDouble();
 		motor_tilt_forward = d["motor_tilt_forward"].GetDouble();
+		motor_buffer_depth = d["motor_buffer_depth"].GetUint();
 
 		show_frame_rgb = d["show_frame_rgb"].GetBool();
 		show_frame_mask = d["show_frame_mask"].GetBool();

@@ -128,7 +128,7 @@ int Network::acceptConnection() {
 /* Send len number of bytes pointed to by data.
 Returns -1 on error, 0 otherwise.
 */
-int Network::sendData(char * data, int len) {
+int Network::sendData(const char * data, int len) {
 	if (!socketEnabled) {
 		cerr << CERR_NOT_ENABLED;
 		return -1;
@@ -200,7 +200,7 @@ int Network::recvData(char * data, int len) {
 		return -1;
 	}
 	if (client == INVALID_SOCKET) {
-		cerr << CERR_ON_FUNC("Server INVALID_SOCKET");
+		cerr << CERR_ON_FUNC("Client INVALID_SOCKET");
 		return -1;
 	}
 
@@ -217,12 +217,45 @@ int Network::recvData(char * data, int len) {
 /* Check the number of bytes recieved.
 Returns the number of bytes recieved.
 */
-int Network::getBytesReady()
-{
+int Network::getBytesReady() {
 	u_long nBytes;
 	int err = ioctlsocket(client, FIONREAD, &nBytes);
 	if (err == SOCKET_ERROR) {
 		cerr << "Finding number of bytes to read failed: " << WSAGetLastError() << endl;
 	}
 	return nBytes;
+}
+
+int Network::disconnectClient() {
+	if (!socketEnabled) {
+		cerr << CERR_NOT_ENABLED;
+		return -1;
+	}
+	if (server == INVALID_SOCKET) {
+		cerr << CERR_ON_FUNC("Server INVALID_SOCKET");
+		return -1;
+	}
+	if (client == INVALID_SOCKET) {
+		cerr << CERR_ON_FUNC("Client INVALID_SOCKET");
+		return -1;
+	}
+	int err = shutdown(client, SD_SEND);
+	closesocket(client);
+}
+
+int Network::shutdownServer() {
+	if (!socketEnabled) {
+		cerr << CERR_NOT_ENABLED;
+		return -1;
+	}
+	if (server == INVALID_SOCKET) {
+		cerr << CERR_ON_FUNC("Server INVALID_SOCKET");
+		return -1;
+	}
+	if (client != INVALID_SOCKET)
+		disconnectClient();
+
+	closesocket(server);
+	WSACleanup();
+
 }
