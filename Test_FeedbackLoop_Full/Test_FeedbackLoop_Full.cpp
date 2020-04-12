@@ -114,6 +114,8 @@ void rgChroma(cuda::GpuMat image, std::vector<cuda::GpuMat>& chroma) {
 	chroma[3].clone().convertTo(chroma[3], CV_8U, 1.0 / 3.0);
 }
 
+
+static bool last;
 /* Given the balloon size and position calculate where the motors should be.
 */
 void sendData(double pxX, double pxY, double area) {
@@ -130,12 +132,20 @@ void sendData(double pxX, double pxY, double area) {
 	double pan = CameraMath::calcPan(pos);
 	double tilt = CameraMath::calcTilt(pos);
 
-	if ((abs(mp.pan - pan) > 5 || abs(mp.tilt - tilt) > 5) && !inMotion) {
+	/*
+	if (inMotion != last) {
+		cout << "Balloon pos " << pan << " " << tilt << endl;
+		cout << "Motor pos " << mp.pan << " " << mp.tilt << endl;
+	}
+	*/
+
+	if ((abs(-mp.pan - pan) > 5 || abs(mp.tilt - tilt) > 5) && !inMotion) {
 		Motor::mutex_desiredPos.lock();
 		Motor::desiredPos = { pan, tilt };
 		Motor::newDesire = true;
 		Motor::mutex_desiredPos.unlock();
 	}
+	last = inMotion;
 }
 
 /* Every 120 ms update the position of the motors.
@@ -144,24 +154,32 @@ Sets the motor position to the disired position, waits 50 ms, and then updates t
 void updatePTC() {
 	auto startTime = timeNow();
 	MotorPos mp = Motor::setPos;
+	while ((timeNow() - startTime) < initialDelay) {
+		this_thread::yield();
+		delay(50);
+	}
 	while (keyboard != 'q' && keyboard != 27) {
-		if ((timeNow() - startTime) >= initialDelay) {
-			Motor::mutex_desiredPos.lock();
-			mp = Motor::desiredPos;
-			bool nd = Motor::newDesire;
-			Motor::mutex_desiredPos.unlock();
+		Motor::mutex_desiredPos.lock();
+		mp = Motor::desiredPos;
+		bool nd = Motor::newDesire;
+		Motor::mutex_desiredPos.unlock();
 
-			if (nd) {
-				PTC::addRotation(-mp.pan - PTC::currentPan(),
-					mp.tilt - PTC::currentTilt());
-				Motor::inMotion = true;
-			}
+		if (nd) {
+			PTC::addRotation(-mp.pan - PTC::currentPan(),
+				mp.tilt - PTC::currentTilt());
+			Motor::inMotion = true;
+			cout << "Moving to:" << mp.pan << " " << mp.tilt << endl;
+
 		}
-		delay(120);
-		Motor::inMotion = false;
+		delay(500);
 
 		Motor::mutex_setPos.lock();
+		Motor::mutex_desiredPos.lock();
+		if(Motor::inMotion)
+			Motor::newDesire = false;
+		Motor::inMotion = false;
 		Motor::setPos = mp;
+		Motor::mutex_desiredPos.unlock();
 		Motor::mutex_setPos.unlock();
 	}
 }
@@ -210,7 +228,7 @@ void processFrames() {
 			sendData(pxX, pxY, area);
 
 			if ((timeNow() - startTime) >= initialDelay) {
-				
+
 			}
 			else {
 				std::chrono::duration<double> deltaT = (timeNow() - startTime);
