@@ -63,7 +63,7 @@ char keyboard; //input from keyboard
 void help() {
 	cout
 		<< "--------------------------------------------------------------------------" << endl
-		<< "This program attempts to connect to the IP camera using OpenCV" << endl
+		<< "This is the whole tracking subsystem." << endl
 		<< endl
 		<< "Usage:" << endl
 		<< "./BalloonTracker.exe" << endl
