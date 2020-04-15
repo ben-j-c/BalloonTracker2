@@ -128,7 +128,7 @@ void sendData(double pxX, double pxY, double area) {
 	Motor::history.pop();
 	Motor::motionHistory.pop();
 
-	CameraMath::pos pos = CameraMath::calcAbsPos(pxX, pxY, area, mp.pan, mp.tilt);
+	CameraMath::pos pos = CameraMath::calcAbsPos(pxX, pxY, area, -mp.pan, mp.tilt);
 	double pan = CameraMath::calcPan(pos);
 	double tilt = CameraMath::calcTilt(pos);
 
