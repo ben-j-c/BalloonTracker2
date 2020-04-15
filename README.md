@@ -4,15 +4,15 @@ The solution directory contains multiple project directories with various functi
 The core project is 'BalloonTracker' along with 'ui' for the displaying data within MATLAB.
 
 # Dependencies
-The projects included require software to compile:
+Compilation dependencies:
 1. Windows 7, 8, 10
 2. VisualStudio 2017
 3. OpenCV 3.4.9 with CUDA
 
-The standalone binaries have other dependencies:
+Standalone binaries dependencies:
 1. VisualStudio 2017 redistributable
 
-The GUI script has additional dependencies:
+GUI dependencies:
 1. MATLAB 2019b
 
 # Installing
