@@ -50,7 +50,7 @@ struct MotorPos {
 FrameBuffer frameBuff(25);
 SettingsWrapper sw("../settings.json");
 static int frameCount = 0;
-auto initialDelay = chrono::seconds(35);
+auto initialDelay = chrono::seconds(15);
 double bearing = 0;
 
 namespace Motor {
@@ -117,6 +117,7 @@ void rgChroma(cuda::GpuMat image, std::vector<cuda::GpuMat>& chroma) {
 
 static bool last;
 /* Given the balloon size and position calculate where the motors should be.
+Stand in for when data should be sent to the GUI.
 */
 void sendData(double pxX, double pxY, double area) {
 	Motor::mutex_setPos.lock();
@@ -132,14 +133,12 @@ void sendData(double pxX, double pxY, double area) {
 	double pan = CameraMath::calcPan(pos);
 	double tilt = CameraMath::calcTilt(pos);
 
-	/*
 	if (inMotion != last) {
-		cout << "Balloon pos " << pan << " " << tilt << endl;
-		cout << "Motor pos " << mp.pan << " " << mp.tilt << endl;
+		cout << "Balloon pos:" << pan << " " << tilt << endl;
+		cout << "Motor pos  :" << mp.pan << " " << mp.tilt << endl;
 	}
-	*/
 
-	if ((abs(-mp.pan - pan) > 5 || abs(mp.tilt - tilt) > 5) && !inMotion) {
+	if ((abs(mp.pan - pan) > 5 || abs(mp.tilt - tilt) > 5) && !inMotion) {
 		Motor::mutex_desiredPos.lock();
 		Motor::desiredPos = { pan, tilt };
 		Motor::newDesire = true;
@@ -148,8 +147,8 @@ void sendData(double pxX, double pxY, double area) {
 	last = inMotion;
 }
 
-/* Every 120 ms update the position of the motors.
-Sets the motor position to the disired position, waits 50 ms, and then updates the set position
+/* Every 200 ms update the position of the motors.
+Sets the motor position to the disired position, waits 200 ms, and then updates the set position
 */
 void updatePTC() {
 	auto startTime = timeNow();
@@ -171,7 +170,7 @@ void updatePTC() {
 			cout << "Moving to:" << mp.pan << " " << mp.tilt << endl;
 
 		}
-		delay(500);
+		delay(200);
 
 		Motor::mutex_setPos.lock();
 		Motor::mutex_desiredPos.lock();
@@ -184,6 +183,9 @@ void updatePTC() {
 	}
 }
 
+/* Continually grab frames from the queue, perform the background subtraction,
+and update the desired motor positions.
+*/
 void processFrames() {
 	cuda::GpuMat gpuFrame, resized, blob;
 	std::vector<cuda::GpuMat> chroma(4);
@@ -254,6 +256,8 @@ void processFrames() {
 	}
 }
 
+/*Read frames from the camera and put them in the queue
+*/
 void processVideo(string videoFileName) {
 
 	//create the capture object
@@ -295,7 +299,7 @@ int main(int argc, char* argv[]) {
 	PTC::useSettings(sw);
 	PTC::moveHome();
 
-	CameraMath::useSettings(sw, 1520, 2592, 35);
+	CameraMath::useSettings(sw, 1520, 2592, 78.5);
 
 	for (int i = 0; i < sw.motor_buffer_depth; i++) {
 		Motor::history.push({ 0, 0 });

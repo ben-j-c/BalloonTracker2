@@ -56,10 +56,6 @@ CameraMath::pos lastPos;
 static int frameCount = 0;
 double initialDelay = 5;
 double bearing = 0;
-vector<double> outboundData(1);
-
-int SThresh = 91;
-int RThresh = 103;
 
 char keyboard; //input from keyboard
 void help() {
@@ -158,7 +154,7 @@ void processFrames() {
 				gpuFrame.rows*sw.image_resize_factor));
 		rgChroma(resized, chroma);
 		cuda::threshold(chroma[0], chroma[0], sw.thresh_red, 255, THRESH_BINARY);
-		cuda::threshold(chroma[1], chroma[1], sw.thresh_green, 255, THRESH_BINARY);
+		cuda::threshold(chroma[1], chroma[1], sw.thresh_green, 255, THRESH_BINARY_INV);
 		cuda::threshold(chroma[3], chroma[3], sw.thresh_s, 255, THRESH_BINARY);
 
 		cuda::bitwise_and(chroma[3], chroma[0], blob);
@@ -243,7 +239,7 @@ int main(int argc, char* argv[]) {
 		positionBuffer.push({ 0,0 });
 	}
 
-	CameraMath::useSettings(sw, 1520, 2592, 35);
+	CameraMath::useSettings(sw, 1520, 2592, 78.5);
 
 	//Create reading thread
 	std::thread videoReadThread(processVideo, sw.camera);

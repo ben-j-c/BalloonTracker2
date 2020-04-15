@@ -37,7 +37,7 @@ void CameraMath::useSettings(SettingsWrapper & sw, int imageHeight, int imageWid
 }
 
 inline double CameraMath::calcDiameter(double area) {
-	return sqrt(area * M_1_PI);
+	return sqrt(area * M_1_PI)*2;
 }
 
 inline double CameraMath::calcDistance(double pxSize) {
