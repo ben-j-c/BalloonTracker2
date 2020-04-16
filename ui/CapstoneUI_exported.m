@@ -158,7 +158,7 @@ classdef CapstoneUI_exported < matlab.apps.AppBase
 				errordlg('Control software not ready!', 'Software error');
 				return;
 			end
-			pause(delay);
+
 			while(strcmp(app.StopButton.Enable, 'on'))
 				if(t.BytesAvailable > 0)
 					words = read(t, 1, 'int32');

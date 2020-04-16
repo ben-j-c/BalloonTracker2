@@ -156,6 +156,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\CameraMath.cpp" />
+    <ClCompile Include="..\Network.cpp" />
     <ClCompile Include="..\SerialPort.cpp" />
     <ClCompile Include="BalloonTracker.cpp" />
     <ClCompile Include="PanTiltControl.cpp" />
@@ -166,6 +167,7 @@
   <ItemGroup>
     <ClInclude Include="..\CameraMath.h" />
     <ClInclude Include="..\IPCameraTest\FrameBuffer.h" />
+    <ClInclude Include="..\Network.h" />
     <ClInclude Include="..\SettingsWrapper.h" />
     <ClInclude Include="PanTiltControl.h" />
   </ItemGroup>

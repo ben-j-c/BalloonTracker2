@@ -18,6 +18,7 @@
 #include <stdio.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
+#include <mutex>
 
 // OpenCV
 #include "opencv2/imgcodecs.hpp"
@@ -35,12 +36,15 @@
 #include <opencv2/cudabgsegm.hpp>
 #include <opencv2/cudacodec.hpp>
 #include <opencv2/cudafeatures2d.hpp>
-#include <opencv2/cudafilters.hpp>
 #include <opencv2/cudaimgproc.hpp>
-#include <opencv2/cudaobjdetect.hpp>
-#include <opencv2/cudaoptflow.hpp>
-#include <opencv2/cudastereo.hpp>
 #include <opencv2/cudawarping.hpp>
+
+//Avoid typos
+#define CIRC "circumference"
+#define DELAY "delay"
+#define BEARING "bearing"
+#define READY "ready"
+#define MISSING "missing members"
 
 using namespace cv;
 using namespace std;
@@ -52,12 +56,22 @@ struct MotorPos {
 // Global variables
 FrameBuffer frameBuff(25);
 SettingsWrapper sw("../settings.json");
-queue<MotorPos> positionBuffer;
-CameraMath::pos lastPos;
 static int frameCount = 0;
-double initialDelay = 5;
+chrono::seconds initialDelay;
 double bearing = 0;
-vector<double> outboundData(1);
+
+CameraMath::pos lastPos;
+vector<double> outboundData;
+
+namespace Motor {
+	bool inMotion, newDesire;
+	//A buffer of flags denoting the motors are in motion
+	queue<bool> motionHistory;
+	//A buffer of motor positions. Buffer depth is given by number of frames of camera delay
+	queue<MotorPos> history;
+	mutex mutex_setPos, mutex_desiredPos;
+	MotorPos setPos, desiredPos;
+}
 
 char keyboard; //input from keyboard
 void help() {
@@ -69,10 +83,24 @@ void help() {
 		<< "./BalloonTracker.exe" << endl
 		<< "--------------------------------------------------------------------------" << endl
 		<< endl;
+
+	cout << "Compilation details:" << endl;
+	cout << "When: " << __DATE__ << "at" << __LINE__ << endl;
+	cout << "Compiler version: " << __cplusplus << endl;
 }
 
 void delay(int ms) {
 	std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+}
+
+auto timeNow() {
+	return chrono::system_clock::now();
+}
+
+void backspace(int num) {
+	for (int i = 0; i < num; i++) {
+		cout << "\b \b";
+	}
 }
 
 void rgChroma(cuda::GpuMat image, std::vector<cuda::GpuMat>& chroma) {
@@ -102,19 +130,31 @@ void rgChroma(cuda::GpuMat image, std::vector<cuda::GpuMat>& chroma) {
 	chroma[3].clone().convertTo(chroma[3], CV_8U, 1.0 / 3.0);
 }
 
-/* Given the balloon size and position calculate where the motors should be and 
+static bool last;
+/* Given the balloon size and position calculate where the motors should be.
+Stand in for when data should be sent to the GUI.
 */
-MotorPos sendData(double pxX, double pxY, double area) {
-	MotorPos mp = positionBuffer.front();
-	positionBuffer.pop();
+void sendData(double pxX, double pxY, double area) {
+	Motor::mutex_setPos.lock();
+	Motor::history.push(Motor::setPos);
+	Motor::motionHistory.push(Motor::inMotion);
+	Motor::mutex_setPos.unlock();
+	MotorPos mp = Motor::history.front();
+	bool inMotion = Motor::motionHistory.front();
+	Motor::history.pop();
+	Motor::motionHistory.pop();
 
-	CameraMath::pos pos = CameraMath::calcAbsPos(pxX, pxY, area, mp.pan, mp.tilt);
+	CameraMath::pos pos = CameraMath::calcAbsPos(pxX, pxY, area, -mp.pan, mp.tilt);
 	double pan = CameraMath::calcPan(pos);
 	double tilt = CameraMath::calcTilt(pos);
 
-	positionBuffer.push({ pan, tilt });
+	if (inMotion != last && sw.debug) {
+		cout << "Balloon pos:" << pan << " " << tilt << endl;
+		cout << "Motor pos  :" << mp.pan << " " << mp.tilt << endl;
+	}
 
 	if (frameCount != 0) {
+		//compute desired params
 		CameraMath::pos dv;
 		dv.x = pos.x - lastPos.x;
 		dv.y = pos.y - lastPos.y;
@@ -124,29 +164,90 @@ MotorPos sendData(double pxX, double pxY, double area) {
 		double direction = atan2(-dv.z, dv.x)*180.0*M_1_PI + bearing;
 		double speed = sqrt(dv.x*dv.x + dv.y*dv.y + dv.z*dv.z);
 
-		outboundData.push_back(time);
-		outboundData.push_back(altitude);
-		outboundData.push_back(direction);
-		outboundData.push_back(speed);
-		if (frameCount % 25) {
-			int words = outboundData.size() / 4;
-			Network::sendData((char*) &words, 4);
-			Network::sendData(outboundData);
-			outboundData.clear();
+		//Every iteration store a column of data
+		//Matlab uses column major for storing arrays
+		if (sw.socket_enable) {
+			outboundData.push_back(time);
+			outboundData.push_back(altitude);
+			outboundData.push_back(direction);
+			outboundData.push_back(speed);
+
+			//Send the number of columns followed by the columns
+			if (frameCount % 50) {
+				Network::sendData((int)(outboundData.size() / 4));
+				Network::sendData(outboundData);
+				outboundData.clear();
+			}
+		}
+		else {
+			if (sw.print_coordinates) {
+				printf("(x,y,z): %f %f %f\n", pos.x, pos.y, pos.z);
+			}
+
+			if (sw.print_rotation) {
+				printf("(pan,tilt): %f %f\n", pan, tilt);
+			}
 		}
 	}
-
 	lastPos = pos;
 
-	return {pan, tilt};
+	//If the balloon has moved outside a 5 degree box, move to compensate
+	if ((abs(mp.pan - pan) > 5 || abs(mp.tilt - tilt) > 5) && !inMotion) {
+		Motor::mutex_desiredPos.lock();
+		Motor::desiredPos = { pan, tilt };
+		Motor::newDesire = true;
+		Motor::mutex_desiredPos.unlock();
+	}
+	last = inMotion;
 }
 
+/* Every 200 ms update the position of the motors.
+Sets the motor position to the disired position, waits 200 ms, and then updates the set position
+*/
+void updatePTC() {
+	auto startTime = timeNow();
+	MotorPos mp = Motor::setPos;
+	while ((timeNow() - startTime) < initialDelay) {
+		this_thread::yield();
+		delay(50);
+	}
+	while (keyboard != 'q' && keyboard != 27) {
+		Motor::mutex_desiredPos.lock();
+		mp = Motor::desiredPos;
+		bool nd = Motor::newDesire;
+		Motor::mutex_desiredPos.unlock();
+
+		if (nd) {
+			PTC::addRotation(-mp.pan - PTC::currentPan(),
+				mp.tilt - PTC::currentTilt());
+			Motor::inMotion = true;
+			if(sw.debug)
+				cout << "Moving to:" << mp.pan << " " << mp.tilt << endl;
+
+		}
+		delay(200);
+
+		Motor::mutex_setPos.lock();
+		Motor::mutex_desiredPos.lock();
+		if (Motor::inMotion)
+			Motor::newDesire = false;
+		Motor::inMotion = false;
+		Motor::setPos = mp;
+		Motor::mutex_desiredPos.unlock();
+		Motor::mutex_setPos.unlock();
+	}
+}
+
+/* Continually grab frames from the queue, perform the background subtraction,
+and update the desired motor positions.
+*/
 void processFrames() {
 	cuda::GpuMat gpuFrame, resized, blob;
 	std::vector<cuda::GpuMat> chroma(4);
 	Mat displayFrame;
 	keyboard = 0;
 
+	auto startTime = timeNow();
 	while (keyboard != 'q' && keyboard != 27) {
 		Mat frame = frameBuff.getReadFrame();
 		cuda::GpuMat gpuFrame(frame);
@@ -154,11 +255,11 @@ void processFrames() {
 
 		cuda::resize(gpuFrame, resized,
 			cv::Size(
-				gpuFrame.cols*sw.image_resize_factor,
-				gpuFrame.rows*sw.image_resize_factor));
+				(int)(gpuFrame.cols*sw.image_resize_factor),
+				(int)(gpuFrame.rows*sw.image_resize_factor)));
 		rgChroma(resized, chroma);
 		cuda::threshold(chroma[0], chroma[0], sw.thresh_red, 255, THRESH_BINARY);
-		cuda::threshold(chroma[1], chroma[1], sw.thresh_green, 255, THRESH_BINARY);
+		cuda::threshold(chroma[1], chroma[1], sw.thresh_green, 255, THRESH_BINARY_INV);
 		cuda::threshold(chroma[3], chroma[3], sw.thresh_s, 255, THRESH_BINARY);
 
 		cuda::bitwise_and(chroma[3], chroma[0], blob);
@@ -172,18 +273,29 @@ void processFrames() {
 		if (loc.size() > 50) {
 			cv::Scalar mean = cv::mean(loc);
 			double pxRadius = sqrt(loc.size() / M_PI);
-			cv::drawMarker(displayFrame, cv::Point2i(mean[0] + pxRadius, mean[1]), cv::Scalar(255, 0, 0, 0), 0, 10, 1);
-			cv::drawMarker(displayFrame, cv::Point2i(mean[0] - pxRadius, mean[1]), cv::Scalar(255, 0, 0, 0), 0, 10, 1);
-			cv::drawMarker(displayFrame, cv::Point2i(mean[0], mean[1] + pxRadius), cv::Scalar(255, 0, 0, 0), 0, 10, 1);
-			cv::drawMarker(displayFrame, cv::Point2i(mean[0], mean[1] - pxRadius), cv::Scalar(255, 0, 0, 0), 0, 10, 1);
-			
+			cv::drawMarker(displayFrame, cv::Point2i((int) (mean[0] + pxRadius), (int) mean[1]),
+				cv::Scalar(255, 0, 0, 0), 0, 10, 1);
+			cv::drawMarker(displayFrame, cv::Point2i((int) (mean[0] - pxRadius), (int) mean[1]),
+				cv::Scalar(255, 0, 0, 0), 0, 10, 1);
+			cv::drawMarker(displayFrame, cv::Point2i((int) mean[0], (int) (mean[1] + pxRadius)),
+				cv::Scalar(255, 0, 0, 0), 0, 10, 1);
+			cv::drawMarker(displayFrame, cv::Point2i((int) mean[0], (int)(mean[1] - pxRadius)),
+				cv::Scalar(255, 0, 0, 0), 0, 10, 1);
+
 			double pxX = mean[0] / sw.image_resize_factor;
 			double pxY = mean[1] / sw.image_resize_factor;
 			double area = loc.size() / (sw.image_resize_factor * sw.image_resize_factor);
 
-			MotorPos mp = sendData(pxX, pxY, area);
+			sendData(pxX, pxY, area);
 
-			PTC::addRotation(-mp.pan - PTC::currentPan(), mp.tilt - PTC::currentTilt());
+			if ((timeNow() - startTime) >= initialDelay) {
+
+			}
+			else {
+				std::chrono::duration<double> deltaT = (timeNow() - startTime);
+				cv::putText(displayFrame, to_string(deltaT.count()),
+					Point(5, 50), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(255, 0, 255, 0), 2);
+			}
 		}
 		else {
 			cout << "No pixels found" << endl;
@@ -191,18 +303,17 @@ void processFrames() {
 			break;
 		}
 
-		imshow("Image", displayFrame);
+		if(sw.show_frame_rgb)
+			imshow("Image", displayFrame);
 
 		blob.download(displayFrame);
-		imshow("blob", displayFrame);
-
+		if(sw.show_frame_mask)
+			imshow("blob", displayFrame);
 
 		frameCount++;
 		//get the input from the keyboard
 		keyboard = (char)waitKey(1);
 	}
-	//Send -1 to denote end of stream
-	Network::sendData<int>(std::vector<int>(1, -1));
 }
 
 void processVideo(string videoFileName) {
@@ -231,7 +342,8 @@ void processVideo(string videoFileName) {
 
 int main(int argc, char* argv[]) {
 	//print help information
-	help();
+	if(sw.print_info)
+		help();
 	//check for the input parameter correctness
 	if (argc > 1 ) {
 		cerr << "Incorrect input list" << endl;
@@ -240,12 +352,19 @@ int main(int argc, char* argv[]) {
 	}
 
 	//create GUI windows
-	namedWindow("Image");
-	namedWindow("blob");
+	if(sw.show_frame_rgb)
+		namedWindow("Image");
+	if(sw.show_frame_mask)
+		namedWindow("blob");
 	
 	//Setup configuration
 	Network::useSettings(sw);
+	cout << "Starting server";
+	if (sw.socket_enable)
+		cout << "on port " << sw.socket_port;
+	cout << "..." << endl;
 	Network::startServer();
+	cout << "Server started, waiting for connection..." << endl;
 	Network::acceptConnection();
 	delay(250); //Wait so MATLAB can send input params
 	std::vector<char> clientParams = Network::recvData();
@@ -253,27 +372,42 @@ int main(int argc, char* argv[]) {
 	//Parse and validate the existance of params
 	Document d;
 	d.Parse(clientParams.data());
-	if (~d.HasMember("circumference") || ~d.HasMember("delay") || ~d.HasMember("bearing")) {
-		Network::sendData("missing members", 15);
+	if (!d.HasMember(CIRC) || !d.HasMember(DELAY) || !d.HasMember(BEARING)) {
+		Network::sendData(MISSING, strlen(MISSING));
 		return EXIT_FAILURE;
 	}
-
-	for (int i = 0; i < sw.motor_buffer_depth; i++) {
-		positionBuffer.push({ 0,0 });
+	else {
+		Network::sendData(READY, strlen(READY));
 	}
 
-	PTC::useSettings(sw);
-	CameraMath::useSettings(sw, 1520, 2592, d["circumference"].GetDouble());
-	bearing = d["bearing"].GetDouble();
+	if (sw.print_info) {
+		cout << CIRC << d[CIRC].GetDouble() << endl;
+		cout << DELAY << d[DELAY].GetDouble() << endl;
+		cout << BEARING << d[BEARING].GetDouble() << endl;
+	}
+
+	initialDelay = chrono::seconds((int) d[DELAY].GetDouble());
+	bearing = d[BEARING].GetDouble();
+
+	for (uint32_t i = 0; i < sw.motor_buffer_depth; i++) {
+		Motor::history.push({ 0, 0 });
+		Motor::motionHistory.push(false);
+	}
 
 	//Create reading thread
 	std::thread videoReadThread(processVideo, sw.camera);
+	std::thread motorsUpdateThread(updatePTC);
 	//Jump to processing function
 	processFrames();
+
 	//On exit wait for reading thread
 	videoReadThread.join();
-	//Cleanup
+	motorsUpdateThread.join();
 	PTC::shutdown();
+
+	//Send data done value
+	Network::sendData(-1);
+	delay(50);
 	Network::shutdownServer();
 
 	//destroy GUI windows
