@@ -24,10 +24,10 @@
   "motor_tilt_max": 2160.0,
   "motor_tilt_forward": 1776.0,
   "motor_buffer_depth":  19,
-  "show_frame_rgb": false,
-  "show_frame_mask": false,
+  "show_frame_rgb": true,
+  "show_frame_mask": true,
   "show_frame_track": false,
   "print_coordinates": false,
   "print_rotation": false,
-  "print_info": false
+  "print_info": true
 }
