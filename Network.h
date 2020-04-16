@@ -14,6 +14,10 @@ namespace Network {
 		int bytes = (int) data.size() * (int) sizeof(T);
 		return sendData((char*)data.data(), bytes);
 	}
+	template<typename T> int sendData(const T& data) {
+		int32_t bytes = (int32_t) sizeof(data);
+		return sendData((const char*) &data, bytes);
+	}
 	template<typename T> std::vector<T> recvData() {
 		int nBytes = getBytesReady();
 		int extraElements = nBytes % (int) sizeof(T);
