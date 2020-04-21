@@ -50,7 +50,7 @@ struct MotorPos {
 FrameBuffer frameBuff(25);
 SettingsWrapper sw("../settings.json");
 static int frameCount = 0;
-auto initialDelay = chrono::seconds(15);
+auto initialDelay = chrono::seconds(20);
 double bearing = 0;
 
 namespace Motor {
@@ -177,7 +177,7 @@ void updatePTC() {
 		if(Motor::inMotion)
 			Motor::newDesire = false;
 		Motor::inMotion = false;
-		Motor::setPos = mp;
+		Motor::setPos = {-PTC::currentPan(), PTC::currentTilt()};
 		Motor::mutex_desiredPos.unlock();
 		Motor::mutex_setPos.unlock();
 	}

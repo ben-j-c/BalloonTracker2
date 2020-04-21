@@ -45,6 +45,7 @@
 #define BEARING "bearing"
 #define READY "ready"
 #define MISSING "missing members"
+#define MODE_SELECT "absCoord"
 
 using namespace cv;
 using namespace std;
@@ -56,7 +57,8 @@ struct MotorPos {
 // Global variables
 FrameBuffer frameBuff(25);
 SettingsWrapper sw("../settings.json");
-static int frameCount = 0;
+int frameCount = 0;
+bool sendCoordinates = false;
 chrono::seconds initialDelay;
 double bearing = 0;
 
@@ -114,7 +116,6 @@ void rgChroma(cuda::GpuMat image, std::vector<cuda::GpuMat>& chroma) {
 	cuda::add(colors[0], colors[1], chroma[3]);
 	cuda::add(chroma[3], colors[2], chroma[3]);
 
-
 	//perform fixed point rgChromaticity
 	image.convertTo(i16, CV_16UC3, 256);
 	cuda::split(i16, colors);
@@ -133,8 +134,10 @@ void rgChroma(cuda::GpuMat image, std::vector<cuda::GpuMat>& chroma) {
 static bool last;
 /* Given the balloon size and position calculate where the motors should be.
 Stand in for when data should be sent to the GUI.
+
+Returns true when time to shutdown.
 */
-void sendData(double pxX, double pxY, double area) {
+bool sendData(double pxX, double pxY, double area) {
 	Motor::mutex_setPos.lock();
 	Motor::history.push(Motor::setPos);
 	Motor::motionHistory.push(Motor::inMotion);
@@ -167,13 +170,21 @@ void sendData(double pxX, double pxY, double area) {
 		//Every iteration store a column of data
 		//Matlab uses column major for storing arrays
 		if (sw.socket_enable) {
-			outboundData.push_back(time);
-			outboundData.push_back(altitude);
-			outboundData.push_back(direction);
-			outboundData.push_back(speed);
+			if (sendCoordinates) {
+				outboundData.push_back(time);
+				outboundData.push_back(pos.x);
+				outboundData.push_back(pos.y);
+				outboundData.push_back(pos.z);
+			}
+			else {
+				outboundData.push_back(time);
+				outboundData.push_back(altitude);
+				outboundData.push_back(direction);
+				outboundData.push_back(speed);
+			}
 
 			//Send the number of columns followed by the columns
-			if (frameCount % 50) {
+			if (frameCount % 50 == 0) {
 				Network::sendData((int)(outboundData.size() / 4));
 				Network::sendData(outboundData);
 				outboundData.clear();
@@ -199,6 +210,11 @@ void sendData(double pxX, double pxY, double area) {
 		Motor::mutex_desiredPos.unlock();
 	}
 	last = inMotion;
+
+	if (Network::getBytesReady()) {
+		return true;
+	}
+	return false;
 }
 
 /* Every 200 ms update the position of the motors.
@@ -225,14 +241,14 @@ void updatePTC() {
 				cout << "Moving to:" << mp.pan << " " << mp.tilt << endl;
 
 		}
-		delay(200);
+		delay(240);
 
 		Motor::mutex_setPos.lock();
 		Motor::mutex_desiredPos.lock();
 		if (Motor::inMotion)
 			Motor::newDesire = false;
 		Motor::inMotion = false;
-		Motor::setPos = mp;
+		Motor::setPos = {-PTC::currentPan(), PTC::currentTilt()};
 		Motor::mutex_desiredPos.unlock();
 		Motor::mutex_setPos.unlock();
 	}
@@ -286,7 +302,11 @@ void processFrames() {
 			double pxY = mean[1] / sw.image_resize_factor;
 			double area = loc.size() / (sw.image_resize_factor * sw.image_resize_factor);
 
-			sendData(pxX, pxY, area);
+			bool stop = sendData(pxX, pxY, area);
+			if (stop) {
+				keyboard = 'q';
+				break;
+			}
 
 			if ((timeNow() - startTime) >= initialDelay) {
 
@@ -298,9 +318,11 @@ void processFrames() {
 			}
 		}
 		else {
-			cout << "No pixels found" << endl;
-			keyboard = 'q';
-			break;
+			if ((timeNow() - startTime) >= initialDelay) {
+				cout << "No pixels found" << endl;
+				keyboard = 'q';
+				break;
+			}
 		}
 
 		if(sw.show_frame_rgb)
@@ -327,7 +349,8 @@ void processVideo(string videoFileName) {
 		if (!capture.isOpened()) {
 			//error in opening the video input
 			cerr << "Unable to open video file: " << videoFileName << endl;
-			exit(-1);
+			keyboard = 'q';
+			break;
 		}
 
 		if (!capture.read(frame)) {
@@ -357,11 +380,14 @@ int main(int argc, char* argv[]) {
 	if(sw.show_frame_mask)
 		namedWindow("blob");
 	
+	if (!sw.socket_enable) {
+		cerr << "Error: Socket must have valid port. Exiting." << endl;
+		exit(-1);
+	}
 	//Setup configuration
 	Network::useSettings(sw);
 	cout << "Starting server";
-	if (sw.socket_enable)
-		cout << "on port " << sw.socket_port;
+	cout << "on port " << sw.socket_port;
 	cout << "..." << endl;
 	Network::startServer();
 	cout << "Server started, waiting for connection..." << endl;
@@ -372,8 +398,12 @@ int main(int argc, char* argv[]) {
 	//Parse and validate the existance of params
 	Document d;
 	d.Parse(clientParams.data());
-	if (!d.HasMember(CIRC) || !d.HasMember(DELAY) || !d.HasMember(BEARING)) {
+	if (!d.HasMember(CIRC) || 
+		!d.HasMember(DELAY) || 
+		!d.HasMember(BEARING) || 
+		!d.HasMember(MODE_SELECT)) {
 		Network::sendData(MISSING, strlen(MISSING));
+		Network::shutdownServer();
 		return EXIT_FAILURE;
 	}
 	else {
@@ -381,18 +411,23 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (sw.print_info) {
-		cout << CIRC << d[CIRC].GetDouble() << endl;
-		cout << DELAY << d[DELAY].GetDouble() << endl;
-		cout << BEARING << d[BEARING].GetDouble() << endl;
+		cout << CIRC << " " << d[CIRC].GetDouble() << endl;
+		cout << DELAY << " " << d[DELAY].GetDouble() << endl;
+		cout << BEARING << " " << d[BEARING].GetDouble() << endl;
+		cout << MODE_SELECT << " " << d[MODE_SELECT].GetBool() << endl;
 	}
 
 	initialDelay = chrono::seconds((int) d[DELAY].GetDouble());
 	bearing = d[BEARING].GetDouble();
+	CameraMath::useSettings(sw, sw.imH, sw.imW, d[CIRC].GetDouble());
+	sendCoordinates = d[MODE_SELECT].GetBool();
 
 	for (uint32_t i = 0; i < sw.motor_buffer_depth; i++) {
 		Motor::history.push({ 0, 0 });
 		Motor::motionHistory.push(false);
 	}
+
+	PTC::useSettings(sw);
 
 	//Create reading thread
 	std::thread videoReadThread(processVideo, sw.camera);

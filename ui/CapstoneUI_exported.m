@@ -28,18 +28,22 @@ classdef CapstoneUI_exported < matlab.apps.AppBase
 	properties (Access = public)
 		time = [];
 		speed = [];
-		velocity = [];
+		direction = [];
 		altitude = [];
+		t = [];
+		varNames = {'Time'; 'Altitude '; 'Direction'; 'Speed'};
+		usePos = false;
 	end
 	
 	
 	methods (Access = private)
 		
 		function clear_update_graphs(app)
-			scatter(app.UIAxes, app.UITable.Data{:,3}, app.UITable.Data{:,2},'filled');
-			scatter(app.UIAxes_3, app.UITable.Data{:,3}, app.UITable.Data{:,2},'filled');
-			scatter(app.UIAxes_2, app.UITable.Data{:,4}, app.UITable.Data{:,2},'filled');
-			scatter(app.UIAxes_4, app.UITable.Data{:,4}, app.UITable.Data{:,2},'filled');
+			if(app.usePos)
+				app.plotAsPos();
+			else
+				app.plotAsAltitude();
+			end
 		end
 	end
 	
@@ -49,7 +53,7 @@ classdef CapstoneUI_exported < matlab.apps.AppBase
 		
 		% Code that executes after component creation
 		function startupFcn(app)
-			T = table(0,0,0,0,'VariableNames', {'Time', 'Altitude', 'Direction', 'Speed'});
+			T = table(0,0,0,0,'VariableNames', app.varNames);
 			app.UITable.Data = T;
 			app.UITable_2.Data = app.UITable.Data;
 			app.UIFigure.Name = "";
@@ -81,7 +85,21 @@ classdef CapstoneUI_exported < matlab.apps.AppBase
 			if (file ~= 0)
 				try
 					values = readtable(fullfile(path,file));
-					app.UITable.Data = values(:,{'Time', 'Altitude', 'Direction', 'Speed'});
+					try
+						app.UITable.Data = values(:,{'Time', 'Altitude', 'Direction', 'Speed'});
+						app.varNames = {'Time'; 'Altitude'; 'Direction'; 'Speed'};
+						app.usePos = false;
+					catch
+						app.UITable.Data = values(:,{'Time', 'X', 'Y', 'Z'});
+						app.varNames = {'Time'; 'X'; 'Y'; 'Z'};
+						app.usePos = true;
+					end
+					
+					app.time = table2array(values(:, 1));
+					app.altitude = table2array(values(:, 2));
+					app.direction = table2array(values(:, 3));
+					app.speed = table2array(values(:, 4));
+					
 					app.UITable_2.Data = app.UITable.Data;
 					clear_update_graphs(app);
 					app.UIFigure.Name = file;
@@ -136,20 +154,92 @@ classdef CapstoneUI_exported < matlab.apps.AppBase
 			end
 		end
 		
+		function plotAsPos(app)
+			plot(app.UIAxes, app.altitude, app.direction, '.');
+			title(app.UIAxes,'X-Y Motion');
+			xlabel(app.UIAxes, 'X (mm)');
+			ylabel(app.UIAxes, 'Y (mm)');
+			plot(app.UIAxes_3, app.altitude, app.direction, '.');
+			title(app.UIAxes_3,'X-Y Motion');
+			xlabel(app.UIAxes_3, 'X (mm)');
+			ylabel(app.UIAxes_3, 'Y (mm)');
+			plot(app.UIAxes_2, app.time, app.speed, '.');
+			title(app.UIAxes_2, 'Depth Over Time');
+			xlabel(app.UIAxes_2, 'Time (Seconds)');
+			ylabel(app.UIAxes_2, 'Z (mm)');
+			plot(app.UIAxes_4, app.time, app.speed, '.');
+			title(app.UIAxes_4, 'Depth Over Time');
+			xlabel(app.UIAxes_4, 'Time (Seconds)');
+			ylabel(app.UIAxes_4, 'Z (mm)');
+		end
+		
+		function plotAsAltitude(app)
+			plot(app.UIAxes, app.speed, app.altitude, '.');
+			title(app.UIAxes,'Speed Vs. Altitude');
+			xlabel(app.UIAxes, 'Speed (mm/s)');
+			ylabel(app.UIAxes, 'Altitude (mm)');
+			plot(app.UIAxes_3, app.speed, app.altitude, '.');
+			title(app.UIAxes_3,'Speed Vs. Altitude');
+			xlabel(app.UIAxes_3, 'Speed (mm/s)');
+			ylabel(app.UIAxes_3, 'Altitude (mm)');
+			plot(app.UIAxes_2, app.direction, app.altitude, '.');
+			title(app.UIAxes_2,'Direction Vs. Altitude');
+			xlabel(app.UIAxes_2, 'Direction (degrees)');
+			ylabel(app.UIAxes_2, 'Altitude (mm)');
+			plot(app.UIAxes_4, app.direction, app.altitude, '.');
+			title(app.UIAxes_4,'Direction Vs. Altitude');
+			xlabel(app.UIAxes_4, 'Direction (degrees)');
+			ylabel(app.UIAxes_4, 'Altitude (mm)');
+		end
+		
+		function UpdateTable(app, tableT)
+			app.UITable_2.ColumnName = app.varNames;
+			app.UITable.ColumnName = app.varNames;
+			app.UITable_2.Data = tableT;
+			app.UITable.Data = tableT;
+		end
+		
+		function result = logicalToStr(app, logic)
+			LogicalConversion = {'false', 'true'};
+			result = LogicalConversion{logic + 1};
+		end
+		
 		function SampleDataFromModel(app, initial)
-			delay = str2double(initial{2});
+			app.time = [];
+			app.altitude = [];
+			app.direction = [];
+			app.speed = [];
+			
+			%determine which mode
+			modeSelect = questdlg({'Would you like to report absolute coordinates?', ...
+				'Altitude, direction, and speed will be replaced with (x,y,z)'});
+			switch modeSelect
+				case 'Yes'
+					app.varNames = {'Time'; 'X'; 'Y'; 'Z'};
+					modeSelect = true;
+				case 'No'
+					app.varNames = {'Time'; 'Altitude '; 'Direction'; 'Speed'};
+					modeSelect = false;
+				case 'Cancel'
+					app.FileMenu.Enable = 'on';
+					app.PlayButton.Enable = 'on';
+					app.StopButton.Enable = 'off';
+					return;
+			end
+			
+			%Connect to server and send info
 			fprintf('Waiting to connect\n');
 			fprintf('Connecting to server...\n');
-			t = tcpclient('localhost', 50000);
+			app.t = tcpclient('localhost', 50000);
 			fprintf('Connected to server...\n');
 			
-			json = sprintf('{"circumference":%s, "delay": %s, "bearing": %s}', ...
-				initial{1}, initial{2}, initial{3});
-			write(t, [uint8(json) 0]);
-			while(t.BytesAvailable == 0)
+			json = sprintf('{"circumference":%s, "delay": %s, "bearing": %s, "absCoord": %s}', ...
+				initial{1}, initial{2}, initial{3}, app.logicalToStr(modeSelect));
+			write(app.t, [uint8(json) 0]);
+			while(app.t.BytesAvailable == 0)
 				pause(0.05);
 			end
-			ack = read(t, t.BytesAvailable, 'char');
+			ack = read(app.t, app.t.BytesAvailable, 'char');
 			
 			if(~strcmp(ack(1:5), 'ready'))
 				app.FileMenu.Enable = 'on';
@@ -159,9 +249,10 @@ classdef CapstoneUI_exported < matlab.apps.AppBase
 				return;
 			end
 
+			%While software is still running
 			while(strcmp(app.StopButton.Enable, 'on'))
-				if(t.BytesAvailable > 0)
-					words = read(t, 1, 'int32');
+				if(app.t.BytesAvailable > 0)
+					words = read(app.t, 1, 'int32');
 					if(words == -1)
 						app.FileMenu.Enable = 'on';
 						app.PlayButton.Enable = 'on';
@@ -169,7 +260,8 @@ classdef CapstoneUI_exported < matlab.apps.AppBase
 						return;						
 					end
 					
-					data = read(t, words*4, 'double');
+					data = read(app.t, words*4, 'double');
+					data = reshape(data,[4, words])';
 					
 					app.time = [app.time; data(:,1)];
 					app.altitude = [app.altitude; data(:,2)];
@@ -178,16 +270,19 @@ classdef CapstoneUI_exported < matlab.apps.AppBase
 					
 					T = table(app.time,app.altitude,app.direction,app.speed,...
 						'VariableNames', ...
-						{'Time', 'Altitude ', 'Direction', 'Speed'});
-					app.UITable.Data = T;
-					ti  = 1:numel(app.x);
-					scatter(app.UIAxes, ti, app.x ,'filled');
-					scatter(app.UIAxes_3, ti, app.x,'filled');
-					scatter(app.UIAxes_2, ti, app.y,'filled');
-					scatter(app.UIAxes_4, ti, app.z,'filled');
+						app.varNames);
+					app.UpdateTable(T);
+					if(modeSelect)
+						app.plotAsPos();
+					else
+						app.plotAsAltitude();
+					end
+					
 				end
 				pause(0.5);
 			end
+			
+			write(app.t, [uint8('exit') 0]);
 		end
 		
 		% Button pushed function: PlayButton
@@ -197,7 +292,7 @@ classdef CapstoneUI_exported < matlab.apps.AppBase
 				'Enter bearing (degrees):'};
 			dlgtitle = 'Input';
 			dims = [1 35];
-			definput = {'40','5', '0'};
+			definput = {'78.5','20', '0'};
 			try
 				answer = inputdlg(prompt,dlgtitle,dims,definput);
 				
@@ -345,7 +440,7 @@ classdef CapstoneUI_exported < matlab.apps.AppBase
 			
 			% Create UITable
 			app.UITable = uitable(app.BothTab_2);
-			app.UITable.ColumnName = {'Time'; 'Altitude'; 'Direction'; 'Speed'};
+			app.UITable.ColumnName = app.varNames;
 			app.UITable.RowName = {};
 			app.UITable.DisplayDataChangedFcn = createCallbackFcn(app, @UITableDisplayDataChanged, true);
 			app.UITable.Position = [537 38 304 331];
@@ -374,7 +469,7 @@ classdef CapstoneUI_exported < matlab.apps.AppBase
 			
 			% Create UITable_2
 			app.UITable_2 = uitable(app.Table);
-			app.UITable_2.ColumnName = {'Time'; 'Altitude'; 'Direction'; 'Speed'};
+			app.UITable_2.ColumnName = app.varNames;
 			app.UITable_2.RowName = {};
 			app.UITable_2.DisplayDataChangedFcn = createCallbackFcn(app, @UITable_2DisplayDataChanged, true);
 			app.UITable_2.Position = [26 0 808 381];
