@@ -272,7 +272,8 @@ void processFrames() {
 		cuda::resize(gpuFrame, resized,
 			cv::Size(
 				(int)(gpuFrame.cols*sw.image_resize_factor),
-				(int)(gpuFrame.rows*sw.image_resize_factor)));
+				(int)(gpuFrame.rows*sw.image_resize_factor)),
+				0.0, 0.0, INTER_NEAREST);
 		rgChroma(resized, chroma);
 		cuda::threshold(chroma[0], chroma[0], sw.thresh_red, 255, THRESH_BINARY);
 		cuda::threshold(chroma[1], chroma[1], sw.thresh_green, 255, THRESH_BINARY_INV);

@@ -38,6 +38,13 @@ classdef CapstoneUI_exported < matlab.apps.AppBase
 	
 	methods (Access = private)
 		
+		function clear_data() 
+			time = [];
+			speed = [];
+			direction = [];
+			altitude = [];
+		end
+		
 		function clear_update_graphs(app)
 			if(app.usePos)
 				app.plotAsPos();
@@ -68,6 +75,7 @@ classdef CapstoneUI_exported < matlab.apps.AppBase
 				'Options',{'Ok','Cancel'},...
 				'DefaultOption',2,'CancelOption',2, 'Icon','warning');
 			if strcmp(selection, 'Ok')
+				app.clear_data()
 				T = table(0,0,0,0);
 				app.UITable.Data = T;
 				app.UITable_2.Data = T;
@@ -99,8 +107,7 @@ classdef CapstoneUI_exported < matlab.apps.AppBase
 					app.altitude = table2array(values(:, 2));
 					app.direction = table2array(values(:, 3));
 					app.speed = table2array(values(:, 4));
-					
-					app.UITable_2.Data = app.UITable.Data;
+					app.UpdateTable(values);
 					clear_update_graphs(app);
 					app.UIFigure.Name = file;
 				catch
