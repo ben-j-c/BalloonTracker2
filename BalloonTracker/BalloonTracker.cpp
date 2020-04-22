@@ -21,21 +21,16 @@
 #include <mutex>
 
 // OpenCV
-#include "opencv2/imgcodecs.hpp"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/videoio.hpp"
 #include <opencv2/highgui.hpp>
 #include <opencv2/video.hpp>
-#include <opencv2/photo.hpp>
 #include <opencv2/features2d.hpp>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/core/cuda.hpp>
 #include <opencv2/core/cuda.inl.hpp>
 #include <opencv2/cudaarithm.hpp>
-#include <opencv2/cudabgsegm.hpp>
-#include <opencv2/cudacodec.hpp>
-#include <opencv2/cudafeatures2d.hpp>
 #include <opencv2/cudaimgproc.hpp>
 #include <opencv2/cudawarping.hpp>
 
