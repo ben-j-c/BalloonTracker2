@@ -42,6 +42,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test_Camera_Latency", "Test
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test_Model_001", "Test_Model_001\Test_Model_001.vcxproj", "{8F895C41-2771-4655-83C5-93880ADA81FE}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GUI", "GUI\GUI.vcxproj", "{D40DB36E-11D2-475E-9515-43CF53A6828C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -170,6 +172,14 @@ Global
 		{8F895C41-2771-4655-83C5-93880ADA81FE}.Release|x64.Build.0 = Release|x64
 		{8F895C41-2771-4655-83C5-93880ADA81FE}.Release|x86.ActiveCfg = Release|Win32
 		{8F895C41-2771-4655-83C5-93880ADA81FE}.Release|x86.Build.0 = Release|Win32
+		{D40DB36E-11D2-475E-9515-43CF53A6828C}.Debug|x64.ActiveCfg = Debug|x64
+		{D40DB36E-11D2-475E-9515-43CF53A6828C}.Debug|x64.Build.0 = Debug|x64
+		{D40DB36E-11D2-475E-9515-43CF53A6828C}.Debug|x86.ActiveCfg = Debug|Win32
+		{D40DB36E-11D2-475E-9515-43CF53A6828C}.Debug|x86.Build.0 = Debug|Win32
+		{D40DB36E-11D2-475E-9515-43CF53A6828C}.Release|x64.ActiveCfg = Release|x64
+		{D40DB36E-11D2-475E-9515-43CF53A6828C}.Release|x64.Build.0 = Release|x64
+		{D40DB36E-11D2-475E-9515-43CF53A6828C}.Release|x86.ActiveCfg = Release|Win32
+		{D40DB36E-11D2-475E-9515-43CF53A6828C}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
