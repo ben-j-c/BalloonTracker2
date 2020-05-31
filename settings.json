@@ -31,5 +31,6 @@
   "show_frame_track": false,
   "print_coordinates": false,
   "print_rotation": false,
-  "print_info": true
+  "print_info": true,
+  "save_directory": ""
 }

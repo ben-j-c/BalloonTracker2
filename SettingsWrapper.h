@@ -53,6 +53,8 @@ public:
 	bool print_rotation;
 	bool print_info;
 
+	std::string save_directory;
+
 private:
 	void verifyExistance(Document& d) {
 		assert(d.HasMember("debug"));
@@ -95,6 +97,8 @@ private:
 		assert(d.HasMember("print_coordinates"));
 		assert(d.HasMember("print_rotation"));
 		assert(d.HasMember("print_info"));
+
+		assert(d.HasMember("save_directory"));
 	}
 
 	void verifyType(Document& d) {
@@ -137,6 +141,8 @@ private:
 		assert(d["print_coordinates"].IsBool());
 		assert(d["print_rotation"].IsBool());
 		assert(d["print_info"].IsBool());
+
+		assert(d["save_directory"].IsString());
 	}
 
 	void loadValues(Document& d) {
@@ -182,9 +188,17 @@ private:
 		print_coordinates = d["print_coordinates"].GetBool();
 		print_rotation = d["print_rotation"].GetBool();
 		print_info = d["print_info"].GetBool();
+		
+		save_directory = d["save_directory"].GetBool();
 	}
 public:
 	SettingsWrapper(string fileName) {
+		loadSettings(fileName);
+	}
+
+	SettingsWrapper() = default;
+
+	void loadSettings(const string& fileName) {
 		std::ifstream fileStream(fileName, std::ifstream::in);
 		if (!fileStream.is_open()) {
 			throw "File was not opened or not found.";
@@ -197,7 +211,5 @@ public:
 		verifyType(d);
 		loadValues(d);
 	}
-
-	SettingsWrapper() = default;
 };
 
