@@ -3,6 +3,7 @@
 #include <sstream>
 #include <rapidjson/document.h>
 #include <fstream>
+#include <vector>
 
 using std::string;
 using std::stringstream;
@@ -10,91 +11,157 @@ using std::ifstream;
 using rapidjson::Document;
 using rapidjson::Value;
 
-
 class SettingsEntryCommon {
 public:
 	string name;
 
-	SettingsEntryCommon(const string& name) : name(name) {
+	SettingsEntryCommon(const std::string& name) : name(name) {
+
 	}
 
-	bool hasMember(Document &d) {
-		return d.HasMember[name];
+	virtual bool validateExistance(Document &d) {
+		return d.HasMember(name.c_str());
 	}
-
-	virtual bool verifyType(Document &d);
+	virtual bool validateType(Document &d);
+	virtual void addMember(Document &d);
 	virtual void loadData(Document &d);
 };
 
-template<typename T>
-class SettingsEntry : SettingsEntryCommon {
+class SettingsEntryBool : public SettingsEntryCommon {
 public:
-	T data;
+	bool data;
 
-	operator T&() {
-		return T;
+	SettingsEntryBool(const std::string& name) : SettingsEntryCommon(name) {}
+
+	virtual bool validateType(Document &d) {
+		return d[name.c_str()].IsBool();
 	}
 
-	SettingsEntry(const string& name) : SettingsEntryCommon(name) {
-		SettingsWrapper::all.push_back(*this);
+	virtual void addMember(Document &d) {
 	}
 
-	virtual bool verifyType(Document &d;
-	virtual void loadData(Document &d);
+	virtual void loadData(Document &d) {
+		data = d[name.c_str()].GetBool();
+	}
 
-	void addEntry(Document& d) {
-		d.AddMember(name, Value(data), d.GetAllocator());
+	operator bool() {
+		return data;
+	}
+
+	bool* operator&() {
+		return &data;
 	}
 };
 
-bool SettingsEntry<string>::verifyType(Document &d) {
-	return d[name.c_str()].IsString();
-}
+class SettingsEntryInt : public SettingsEntryCommon {
+public:
+	int data;
 
-bool SettingsEntry<int>::verifyType(Document &d) {
-	return d[name.c_str()].IsInt();
-}
+	SettingsEntryInt(const std::string& name) : SettingsEntryCommon(name) {}
 
-bool SettingsEntry<uint32_t>::verifyType(Document &d) {
-	return d[name.c_str()].IsUint();
-}
+	virtual bool validateType(Document &d) {
+		return d[name.c_str()].IsInt();
+	}
 
-bool SettingsEntry<bool>::verifyType(Document &d) {
-	return d[name.c_str()].IsBool();
-}
+	virtual void addMember(Document &d) {
+	}
 
-bool SettingsEntry<double>::verifyType(Document &d) {
-	return d[name.c_str()].IsDouble();
-}
+	virtual void loadData(Document &d) {
+		data = d[name.c_str()].GetInt();
+	}
 
+	operator int() {
+		return data;
+	}
 
-void SettingsEntry<string>::loadData(Document &d) {
-	data = d[name.c_str()].GetString();
-}
+	int* operator&() {
+		return &data;
+	}
+};
 
-void SettingsEntry<int>::loadData(Document &d) {
-	data = d[name.c_str()].GetInt();
-}
+class SettingsEntryUInt : public SettingsEntryCommon {
+public:
+	uint32_t data;
 
-void SettingsEntry<uint32_t>::loadData(Document &d) {
-	data = d[name.c_str()].GetUint();
-}
+	SettingsEntryUInt(const std::string& name) : SettingsEntryCommon(name) {}
 
-void SettingsEntry<bool>::loadData(Document &d) {
-	data = d[name.c_str()].GetBool();
-}
+	virtual bool validateType(Document &d) {
+		return d[name.c_str()].IsUint();
+	}
 
-void SettingsEntry<double>::loadData(Document &d) {
-	data = d[name.c_str()].GetDouble();
-}
+	virtual void addMember(Document &d) {
+	}
 
-class SettingsWrapper
-{
+	virtual void loadData(Document &d) {
+		data = d[name.c_str()].GetUint();
+	}
+
+	operator uint32_t() {
+		return data;
+	}
+
+	uint32_t* operator&() {
+		return &data;
+	}
+};
+
+class SettingsEntryDouble : public SettingsEntryCommon {
+public:
+	double data;
+
+	SettingsEntryDouble(const std::string& name) : SettingsEntryCommon(name) {}
+
+	virtual bool validateType(Document &d) {
+		return d[name.c_str()].IsDouble();
+	}
+
+	virtual void addMember(Document &d) {
+	}
+
+	virtual void loadData(Document &d) {
+		data = d[name.c_str()].GetDouble();
+	}
+
+	operator double() {
+		return data;
+	}
+
+	double* operator&() {
+		return &data;
+	}
+};
+
+class SettingsEntryString : public SettingsEntryCommon {
+public:
+	string data;
+
+	SettingsEntryString(const std::string& name) : SettingsEntryCommon(name) {}
+
+	virtual bool validateType(Document &d) {
+		return d[name.c_str()].IsString();
+	}
+
+	virtual void addMember(Document &d) {
+	}
+
+	virtual void loadData(Document &d) {
+		data = d[name.c_str()].GetString();
+	}
+
+	operator string() {
+		return data;
+	}
+
+	string* operator&() {
+		return &data;
+	}
+};
+
+class SettingsWrapper {
 public:
 	static std::vector<SettingsEntryCommon> all;
 
-
-	bool debug;
+	SettingsEntryBool debug{"debug"};
 
 	int com_timeout;
 	int com_baud;
@@ -228,7 +295,7 @@ private:
 	}
 
 	void loadValues(Document& d) {
-		debug = d["debug"].GetBool();
+		debug.loadData(d);
 
 		com_timeout = d["com_timeout"].GetInt();
 		com_baud = d["com_baud"].GetInt();
@@ -270,7 +337,7 @@ private:
 		print_coordinates = d["print_coordinates"].GetBool();
 		print_rotation = d["print_rotation"].GetBool();
 		print_info = d["print_info"].GetBool();
-		
+
 		save_directory = d["save_directory"].GetString();
 	}
 public:
