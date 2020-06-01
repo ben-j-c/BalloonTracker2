@@ -8,10 +8,92 @@ using std::string;
 using std::stringstream;
 using std::ifstream;
 using rapidjson::Document;
+using rapidjson::Value;
+
+
+class SettingsEntryCommon {
+public:
+	string name;
+
+	SettingsEntryCommon(const string& name) : name(name) {
+	}
+
+	bool hasMember(Document &d) {
+		return d.HasMember[name];
+	}
+
+	virtual bool verifyType(Document &d);
+	virtual void loadData(Document &d);
+};
+
+template<typename T>
+class SettingsEntry : SettingsEntryCommon {
+public:
+	T data;
+
+	operator T&() {
+		return T;
+	}
+
+	SettingsEntry(const string& name) : SettingsEntryCommon(name) {
+		SettingsWrapper::all.push_back(*this);
+	}
+
+	virtual bool verifyType(Document &d;
+	virtual void loadData(Document &d);
+
+	void addEntry(Document& d) {
+		d.AddMember(name, Value(data), d.GetAllocator());
+	}
+};
+
+bool SettingsEntry<string>::verifyType(Document &d) {
+	return d[name.c_str()].IsString();
+}
+
+bool SettingsEntry<int>::verifyType(Document &d) {
+	return d[name.c_str()].IsInt();
+}
+
+bool SettingsEntry<uint32_t>::verifyType(Document &d) {
+	return d[name.c_str()].IsUint();
+}
+
+bool SettingsEntry<bool>::verifyType(Document &d) {
+	return d[name.c_str()].IsBool();
+}
+
+bool SettingsEntry<double>::verifyType(Document &d) {
+	return d[name.c_str()].IsDouble();
+}
+
+
+void SettingsEntry<string>::loadData(Document &d) {
+	data = d[name.c_str()].GetString();
+}
+
+void SettingsEntry<int>::loadData(Document &d) {
+	data = d[name.c_str()].GetInt();
+}
+
+void SettingsEntry<uint32_t>::loadData(Document &d) {
+	data = d[name.c_str()].GetUint();
+}
+
+void SettingsEntry<bool>::loadData(Document &d) {
+	data = d[name.c_str()].GetBool();
+}
+
+void SettingsEntry<double>::loadData(Document &d) {
+	data = d[name.c_str()].GetDouble();
+}
 
 class SettingsWrapper
 {
 public:
+	static std::vector<SettingsEntryCommon> all;
+
+
 	bool debug;
 
 	int com_timeout;
@@ -212,4 +294,3 @@ public:
 		loadValues(d);
 	}
 };
-
