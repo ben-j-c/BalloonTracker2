@@ -1,1 +1,1 @@
-void getTimeNowString(std::string &sFileName);
+#pragma once

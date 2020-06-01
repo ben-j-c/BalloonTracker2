@@ -189,7 +189,7 @@ private:
 		print_rotation = d["print_rotation"].GetBool();
 		print_info = d["print_info"].GetBool();
 		
-		save_directory = d["save_directory"].GetBool();
+		save_directory = d["save_directory"].GetString();
 	}
 public:
 	SettingsWrapper(string fileName) {
