@@ -158,6 +158,7 @@
     <ClCompile Include="..\CameraMath.cpp" />
     <ClCompile Include="..\Network.cpp" />
     <ClCompile Include="..\SerialPort.cpp" />
+    <ClCompile Include="..\SettingsWrapper.cpp" />
     <ClCompile Include="BalloonTracker.cpp" />
     <ClCompile Include="PanTiltControl.cpp" />
   </ItemGroup>

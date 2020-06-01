@@ -11,20 +11,26 @@ using std::ifstream;
 using rapidjson::Document;
 using rapidjson::Value;
 
+
+class SettingsEntryCommon;
+namespace SettingsWrapperList {
+	extern std::vector<SettingsEntryCommon*> all;
+};
+
 class SettingsEntryCommon {
 public:
 	string name;
 
 	SettingsEntryCommon(const std::string& name) : name(name) {
-
+		SettingsWrapperList::all.push_back(this);
 	}
 
 	virtual bool validateExistance(Document &d) {
 		return d.HasMember(name.c_str());
 	}
-	virtual bool validateType(Document &d);
-	virtual void addMember(Document &d);
-	virtual void loadData(Document &d);
+	virtual bool validateType(Document &d) = 0;
+	virtual void addMember(Document &d) = 0;
+	virtual void loadData(Document &d) = 0;
 };
 
 class SettingsEntryBool : public SettingsEntryCommon {
@@ -105,6 +111,32 @@ public:
 	}
 };
 
+class SettingsEntryUInt8 : public SettingsEntryCommon {
+public:
+	uint8_t data;
+
+	SettingsEntryUInt8(const std::string& name) : SettingsEntryCommon(name) {}
+
+	virtual bool validateType(Document &d) {
+		return d[name.c_str()].IsUint();
+	}
+
+	virtual void addMember(Document &d) {
+	}
+
+	virtual void loadData(Document &d) {
+		data = d[name.c_str()].GetUint();
+	}
+
+	operator uint32_t() {
+		return data;
+	}
+
+	uint8_t* operator&() {
+		return &data;
+	}
+};
+
 class SettingsEntryDouble : public SettingsEntryCommon {
 public:
 	double data;
@@ -159,186 +191,66 @@ public:
 
 class SettingsWrapper {
 public:
-	static std::vector<SettingsEntryCommon> all;
+	SettingsEntryBool debug{ "debug" };
 
-	SettingsEntryBool debug{"debug"};
+	SettingsEntryInt com_timeout{ "com_timeout" };
+	SettingsEntryInt com_baud{ "com_baud" };
+	SettingsEntryInt com_port{ "com_port" };
 
-	int com_timeout;
-	int com_baud;
-	int com_port;
-
-	string camera;
+	SettingsEntryString camera{ "camera" };
 
 	bool socket_enable;
-	int socket_port;
+	SettingsEntryInt socket_port{ "socket_port" };
 
-	double sensor_width;
-	double sensor_height;
-	double focal_length_min;
-	double focal_length_max;
-	double principal_x;
-	double principal_y;
-	uint32_t imW;
-	uint32_t imH;
-	double image_resize_factor;
-	uint8_t thresh_red;
-	uint8_t thresh_s;
-	uint8_t thresh_green;
+	SettingsEntryDouble sensor_width{ "sensor_width" };
+	SettingsEntryDouble sensor_height{ "sensor_height" };
+	SettingsEntryDouble focal_length_min{ "focal_length_min" };
+	SettingsEntryDouble focal_length_max{ "focal_length_max" };
+	SettingsEntryDouble principal_x{ "principal_x" };
+	SettingsEntryDouble principal_y{ "principal_y" };
+	SettingsEntryUInt imW{ "imW" };
+	SettingsEntryUInt imH{ "imH" };
+	SettingsEntryDouble image_resize_factor{ "image_resize_factor" };
+	SettingsEntryUInt8 thresh_red{ "thresh_red" };
+	SettingsEntryUInt8 thresh_s{ "thresh_s" };
+	SettingsEntryUInt8 thresh_green{ "thresh_green" };
 
-	double motor_pan_factor;
-	double motor_pan_min;
-	double motor_pan_max;
-	double motor_pan_forward;
-	double motor_tilt_factor;
-	double motor_tilt_min;
-	double motor_tilt_max;
-	double motor_tilt_forward;
-	uint32_t motor_buffer_depth;
+	SettingsEntryDouble motor_pan_factor{ "motor_pan_factor" };
+	SettingsEntryDouble motor_pan_min{ "motor_pan_min" };
+	SettingsEntryDouble motor_pan_max{ "motor_pan_max" };
+	SettingsEntryDouble motor_pan_forward{ "motor_pan_forward" };
+	SettingsEntryDouble motor_tilt_factor{ "motor_tilt_factor" };
+	SettingsEntryDouble motor_tilt_min{ "motor_tilt_min" };
+	SettingsEntryDouble motor_tilt_max{ "motor_tilt_max" };
+	SettingsEntryDouble motor_tilt_forward{ "motor_tilt_forward" };
+	SettingsEntryUInt motor_buffer_depth{ "motor_buffer_depth" };
 
-	bool show_frame_rgb;
-	bool show_frame_mask;
-	bool show_frame_track;
-	bool print_coordinates;
-	bool print_rotation;
-	bool print_info;
+	SettingsEntryBool show_frame_rgb{ "show_frame_rgb" };
+	SettingsEntryBool show_frame_mask{ "show_frame_mask" };
+	SettingsEntryBool show_frame_track{ "show_frame_track" };
+	SettingsEntryBool print_coordinates{ "print_coordinates" };
+	SettingsEntryBool print_rotation{ "print_rotation" };
+	SettingsEntryBool print_info{ "print_info" };
 
-	std::string save_directory;
+	SettingsEntryString save_directory{ "save_directory" };
 
 private:
 	void verifyExistance(Document& d) {
-		assert(d.HasMember("debug"));
-
-		assert(d.HasMember("com_timeout"));
-		assert(d.HasMember("com_baud"));
-		assert(d.HasMember("com_port"));
-
-		assert(d.HasMember("camera"));
-
-		assert(d.HasMember("socket_port"));
-
-		assert(d.HasMember("sensor_width"));
-		assert(d.HasMember("sensor_height"));
-		assert(d.HasMember("focal_length_min"));
-		assert(d.HasMember("focal_length_max"));
-		assert(d.HasMember("principal_x"));
-		assert(d.HasMember("principal_y"));
-		assert(d.HasMember("imW"));
-		assert(d.HasMember("imH"));
-		assert(d.HasMember("image_resize_factor"));
-		assert(d.HasMember("thresh_red"));
-		assert(d.HasMember("thresh_s"));
-		assert(d.HasMember("thresh_green"));
-
-		assert(d.HasMember("motor_pan_factor"));
-		assert(d.HasMember("motor_pan_min"));
-		assert(d.HasMember("motor_pan_max"));
-		assert(d.HasMember("motor_pan_forward"));
-		assert(d.HasMember("motor_tilt_factor"));
-		assert(d.HasMember("motor_tilt_min"));
-		assert(d.HasMember("motor_tilt_max"));
-		assert(d.HasMember("motor_tilt_forward"));
-		assert(d.HasMember("motor_buffer_depth"));
-
-
-		assert(d.HasMember("show_frame_rgb"));
-		assert(d.HasMember("show_frame_mask"));
-		assert(d.HasMember("show_frame_track"));
-		assert(d.HasMember("print_coordinates"));
-		assert(d.HasMember("print_rotation"));
-		assert(d.HasMember("print_info"));
-
-		assert(d.HasMember("save_directory"));
+		for (auto& v : SettingsWrapperList::all) {
+			v->validateExistance(d);
+		}
 	}
 
 	void verifyType(Document& d) {
-		assert(d["debug"].IsBool());
-
-		assert(d["com_timeout"].IsInt());
-		assert(d["com_baud"].IsInt() || d["com_baud"].IsNull());
-		assert(d["com_port"].IsInt());
-
-		assert(d["camera"].IsString());
-
-		assert(d["socket_port"].IsInt() || d["socket_port"].IsNull());
-
-		assert(d["sensor_width"].IsDouble());
-		assert(d["sensor_height"].IsDouble());
-		assert(d["focal_length_min"].IsDouble());
-		assert(d["focal_length_max"].IsDouble());
-		assert(d["principal_x"].IsDouble());
-		assert(d["principal_y"].IsDouble());
-		assert(d["imW"].IsUint());
-		assert(d["imH"].IsUint());
-		assert(d["image_resize_factor"].IsDouble());
-		assert(d["thresh_red"].IsUint());
-		assert(d["thresh_s"].IsUint());
-		assert(d["thresh_green"].IsUint());
-
-		assert(d["motor_pan_factor"].IsDouble());
-		assert(d["motor_pan_min"].IsDouble());
-		assert(d["motor_pan_max"].IsDouble());
-		assert(d["motor_pan_forward"].IsDouble());
-		assert(d["motor_tilt_factor"].IsDouble());
-		assert(d["motor_tilt_min"].IsDouble());
-		assert(d["motor_tilt_max"].IsDouble());
-		assert(d["motor_tilt_forward"].IsDouble());
-		assert(d["motor_buffer_depth"].IsUint());
-
-		assert(d["show_frame_rgb"].IsBool());
-		assert(d["show_frame_mask"].IsBool());
-		assert(d["show_frame_track"].IsBool());
-		assert(d["print_coordinates"].IsBool());
-		assert(d["print_rotation"].IsBool());
-		assert(d["print_info"].IsBool());
-
-		assert(d["save_directory"].IsString());
+		for (auto& v : SettingsWrapperList::all) {
+			v->validateType(d);
+		}
 	}
 
 	void loadValues(Document& d) {
-		debug.loadData(d);
-
-		com_timeout = d["com_timeout"].GetInt();
-		com_baud = d["com_baud"].GetInt();
-		com_port = d["com_port"].GetInt();
-
-		camera = d["camera"].GetString();
-
-		socket_enable = !d["socket_port"].IsNull();
-		if (socket_enable)
-			socket_port = d["socket_port"].GetInt();
-
-		sensor_width = d["sensor_width"].GetDouble();
-		sensor_height = d["sensor_height"].GetDouble();
-		focal_length_min = d["focal_length_min"].GetDouble();
-		focal_length_max = d["focal_length_max"].GetDouble();
-		principal_x = d["principal_x"].GetDouble();
-		principal_y = d["principal_y"].GetDouble();
-		imW = d["imW"].GetUint();
-		imH = d["imH"].GetUint();
-		image_resize_factor = d["image_resize_factor"].GetDouble();
-		thresh_red = d["thresh_red"].GetUint();
-		thresh_s = d["thresh_s"].GetUint();
-		thresh_green = d["thresh_green"].GetUint();
-
-
-		motor_pan_factor = d["motor_pan_factor"].GetDouble();
-		motor_pan_min = d["motor_pan_min"].GetDouble();
-		motor_pan_max = d["motor_pan_max"].GetDouble();
-		motor_pan_forward = d["motor_pan_forward"].GetDouble();
-		motor_tilt_factor = d["motor_tilt_factor"].GetDouble();
-		motor_tilt_min = d["motor_tilt_min"].GetDouble();
-		motor_tilt_max = d["motor_tilt_max"].GetDouble();
-		motor_tilt_forward = d["motor_tilt_forward"].GetDouble();
-		motor_buffer_depth = d["motor_buffer_depth"].GetUint();
-
-		show_frame_rgb = d["show_frame_rgb"].GetBool();
-		show_frame_mask = d["show_frame_mask"].GetBool();
-		show_frame_track = d["show_frame_track"].GetBool();
-		print_coordinates = d["print_coordinates"].GetBool();
-		print_rotation = d["print_rotation"].GetBool();
-		print_info = d["print_info"].GetBool();
-
-		save_directory = d["save_directory"].GetString();
+		for (auto& v : SettingsWrapperList::all) {
+			v->loadData(d);
+		}
 	}
 public:
 	SettingsWrapper(string fileName) {

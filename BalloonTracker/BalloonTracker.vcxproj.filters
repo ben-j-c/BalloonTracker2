@@ -30,6 +30,9 @@
     <ClCompile Include="..\Network.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\SettingsWrapper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\settings.json">

@@ -146,7 +146,7 @@ bool sendData(double pxX, double pxY, double area) {
 	double pan = CameraMath::calcPan(pos);
 	double tilt = CameraMath::calcTilt(pos);
 
-	if (inMotion != last && sw.debug) {
+	if (inMotion != last && (bool) sw.debug) {
 		cout << "Balloon pos:" << pan << " " << tilt << endl;
 		cout << "Motor pos  :" << mp.pan << " " << mp.tilt << endl;
 	}
