@@ -10,6 +10,8 @@
 #include <ctime>
 #include <sstream>
 #include <limits.h>
+#include <thread>
+#include <chrono>
 
 #define GLEW_STATIC
 #include <GL/glew.h>
@@ -27,6 +29,22 @@
 #include <stdio.h>
 #pragma comment(lib, "Comdlg32")
 #endif // _WIN64
+
+
+static bool bStartedSystem = false;
+static bool bStartedImageProc = false;
+static bool bStartedMotorCont= false;
+static double dBalloonCirc = 37.5;
+static double dCountDown = 30;
+
+
+
+
+
+
+
+
+
 
 static void glfw_error_callback(int error, const char* description) {
 	fprintf(stderr, "Glfw Error %d: %s\n", error, description);
@@ -178,6 +196,153 @@ template<class T> T clamp(T val, T min, T max) {
 	return val;
 }
 
+void drawSettings(SettingsWrapper& sw) {
+	if (ImGui::CollapsingHeader("COM")) {
+		int port = sw.com_port, timeout = sw.com_timeout, baud = sw.com_baud, baudIndex;
+		const int baudList[] = { 110, 300, 600, 1200, 2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200 };
+
+		for (int i = 0; i < sizeof(baudList) / sizeof(int); i++) {
+			if (baud == baudList[i]) {
+				baudIndex = i;
+				break;
+			}
+		}
+
+		ImGui::Columns(3, nullptr, false);
+		ImGui::Combo("Port", &port, " 0\0 1\0 2\0 3\0 4\0 5\0 6\0 7\0 8\0 9\0 10\0 11\0 12\0 13\0 14\0 15\0\0");
+		ImGui::NextColumn();
+		ImGui::DragInt("Timeout", &timeout, 10.0f, 0, 10000, "%d ms");
+		//ImGui::InputInt("Timeout", &timeout);
+		ImGui::NextColumn();
+		ImGui::Combo("Baud", &baudIndex, " 110\0 300\0 600\0 1200\0 2400\0 4800\0 9600\0 14400\0 19200\0 38400\0 57600\0 115200");
+		baud = baudList[baudIndex];
+		std::cout << baud << std::endl;
+
+		sw.com_port = (port = clamp(port, 0, 12));
+		sw.com_timeout = (timeout = clamp(timeout, 0, 10000));
+		sw.com_baud = (baud = clamp(baud, 0, 115200));
+
+	}
+
+	ImGui::Columns(1, nullptr, false);
+
+	if (ImGui::CollapsingHeader("Camera")) {
+		double sensWidth = sw.sensor_width,
+			sensHeight = sw.sensor_height,
+			focalMin = sw.focal_length_min,
+			focalMax = sw.focal_length_max,
+			principalX = sw.principal_x,
+			principalY = sw.principal_y;
+		int imW = sw.imW,
+			imH = sw.imH;
+
+		char cameraAddress[512];
+		strcpy_s<512>(cameraAddress, ((string)sw.camera).c_str());
+		if (ImGui::InputText("Address", cameraAddress, 512)) {
+			sw.camera = std::string(cameraAddress);
+		}
+		ImGui::SameLine(); HelpMarker("The network address of the IP camera.");
+
+		ImGui::InputDouble("Sensor width", &sensWidth, 0.0, 0.0, "%f mm");
+		ImGui::SameLine(); HelpMarker("Physical size of sensor in mm.\nOnly needs to be relative to focal length.");
+		ImGui::InputDouble("Sensor height", &sensHeight, 0.0, 0.0, "%f mm");
+		ImGui::SameLine(); HelpMarker("Physical size of sensor in mm.\nOnly needs to be relative to focal length.");
+		ImGui::InputDouble("Minimum focal length", &focalMin, 0.0, 0.0, "%f mm");
+		ImGui::SameLine(); HelpMarker("The calibrated focal length at minimum zoom.\nOnly needs to be relative to sensor size.");
+		ImGui::InputDouble("Maximum focal length", &focalMax, 0.0, 0.0, "%f mm");
+		ImGui::SameLine(); HelpMarker("The calibrated focal length at maximum zoom.\nOnly needs to be relative to sensor size.");
+		ImGui::InputDouble("Principal point X", &principalX, 0.0, 0.0, "%f pixels");
+		ImGui::SameLine(); HelpMarker("The calibrated center of the image measured in pixels.");
+		ImGui::InputDouble("Principal point Y", &principalY, 0.0, 0.0, "%f pixels");
+		ImGui::SameLine(); HelpMarker("The calibrated center of the image measured in pixels.");
+		ImGui::InputInt("Image width", &imW);
+		ImGui::SameLine(); HelpMarker("Height of images from the stream.");
+		ImGui::InputInt("Image height", &imH);
+		ImGui::SameLine(); HelpMarker("Height of images from the stream.");
+
+		double inf = std::numeric_limits<double>::infinity();
+
+		sw.sensor_width = clamp(sensWidth, 0.1, inf);
+		sw.sensor_height = clamp(sensHeight, 0.1, inf);
+		sw.focal_length_min = clamp(focalMin, 0.1, inf);
+		sw.focal_length_max = clamp(focalMax, focalMin, inf);
+		sw.principal_x = clamp(principalX, 0., inf);
+		sw.principal_y = clamp(principalY, 0., inf);
+		sw.imW = clamp(imW, 1, INT_MAX);
+		sw.imH = clamp(imH, 1, INT_MAX);
+	}
+
+	if (ImGui::CollapsingHeader("Image processing")) {
+		int RGS[3] = { sw.thresh_red, sw.thresh_green, sw.thresh_s };
+		float resizeFac = sw.image_resize_factor;
+
+		ImGui::SliderInt3("RGS threshold", RGS, 0, 255);
+		ImGui::SameLine(); HelpMarker("Normalized red, green, and brightness thresholds.");
+		ImGui::SliderFloat("Image resize factor", &resizeFac, 0.05f, 1.0f);
+		ImGui::SameLine(); HelpMarker("Shrinking factor to improve runtime performance.");
+
+		sw.thresh_red = clamp(RGS[0], 0, 255);
+		sw.thresh_green = clamp(RGS[1], 0, 255);
+		sw.thresh_s = clamp(RGS[2], 0, 255);
+		sw.image_resize_factor = clamp(resizeFac, 0.0f, 1.0f);
+	}
+
+	if (ImGui::CollapsingHeader("Motor control")) {
+		double panFac = sw.motor_pan_factor,
+			panMin = sw.motor_pan_min,
+			panMax = sw.motor_pan_max,
+			panFor = sw.motor_pan_forward,
+			tiltFac = sw.motor_tilt_factor,
+			tiltMin = sw.motor_tilt_min,
+			tiltMax = sw.motor_tilt_max,
+			tiltFor = sw.motor_tilt_forward;
+		int depth = sw.motor_buffer_depth;
+
+		ImGui::InputDouble("Pan conversion factor", &panFac, 0.0, 0.0, "%f");
+		ImGui::SameLine(); HelpMarker("Microseconds per degree.");
+		ImGui::InputDouble("Minimum allowable tilt", &panMin, 0.0, 0.0, "%f microseconds");
+		ImGui::SameLine(); HelpMarker("Safety limit in microseconds");
+		ImGui::InputDouble("Maximum allowable pan", &panMax, 0.0, 0.0, "%f microseconds");
+		ImGui::SameLine(); HelpMarker("Safety limit in microseconds");
+		ImGui::InputDouble("Forward looking pan", &panFor, 0.0, 0.0, "%f microseconds");
+		ImGui::SameLine(); HelpMarker("Microseconds to make the pan motor face forward.");
+		ImGui::InputDouble("Tilt conversion factor", &tiltFac);
+		ImGui::SameLine(); HelpMarker("Microseconds per degree.");
+		ImGui::InputDouble("Minimum allowable tilt", &tiltMin, 0.0, 0.0, "%f microseconds");
+		ImGui::SameLine(); HelpMarker("Safety limit in microseconds");
+		ImGui::InputDouble("Maximum allowable tilt", &tiltMax, 0.0, 0.0, "%f microseconds");
+		ImGui::SameLine(); HelpMarker("Safety limit in microseconds");
+		ImGui::InputDouble("Forward looking tilt", &tiltFor, 0.0, 0.0, "%f microseconds");
+		ImGui::SameLine(); HelpMarker("Microseconds to make the pan motor face forward.");
+		ImGui::InputInt("Latency of camera", &depth);
+		ImGui::SameLine(); HelpMarker("Number of frames from action to received frame");
+	}
+
+	if (ImGui::CollapsingHeader("Display information")) {
+		ImGui::Columns(3, nullptr, false);
+		ImGui::Checkbox("Show RGB image", &sw.show_frame_rgb);
+		ImGui::SameLine(); HelpMarker("Show the resized input image.");
+		ImGui::NextColumn();
+		ImGui::Checkbox("Show masked region", &sw.show_frame_mask);
+		ImGui::SameLine(); HelpMarker("Show the detected mask of the balloon");
+		ImGui::NextColumn();
+		ImGui::Checkbox("Show detection", &sw.show_frame_track);
+		ImGui::SameLine(); HelpMarker("Show a shape indicating the size of the balloon");
+		ImGui::NextColumn();
+
+		ImGui::Columns(1, nullptr, false);
+	}
+}
+
+
+
+
+
+
+
+
+
+
 int main() {
 	SettingsWrapper sw("../settings.json");
 	if (!((std::string) sw.save_directory).size()) {
@@ -281,8 +446,6 @@ int main() {
 			ImGui::EndMainMenuBar();
 		}
 
-
-
 		ImGui::Begin("LeftWindow", nullptr, 0
 			| ImGuiWindowFlags_NoCollapse
 			| ImGuiWindowFlags_NoMove
@@ -297,131 +460,89 @@ int main() {
 		ImGui::Text("File name: \"%s\"", sFileName.size()? sFileName.c_str() : sTimeFileName.c_str());
 		ImGui::Separator();
 
-		ImGui::Text("Settings");
+		ImGui::Columns(2, nullptr, false);
+		ImGui::InputDouble("Balloon circumference", &dBalloonCirc, 0, 0, "%.2f cm");
+		ImGui::NextColumn();
+		ImGui::InputDouble("Countdown", &dCountDown, 0, 0, "%.0f seconds");
 
-		if (ImGui::CollapsingHeader("COM")) {
-			int port = sw.com_port, timeout = sw.com_timeout, baud = sw.com_baud;
-			ImGui::Columns(3, nullptr, false);
-			ImGui::InputInt("Port", &port, 1, 1);
-			ImGui::NextColumn();
-			ImGui::InputInt("Timeout", &timeout);
-			ImGui::NextColumn();
-			ImGui::InputInt("Baud", &baud);
+		ImGui::Columns(4, nullptr, false);
+		ImVec4 green(0.0, 1.0, 0.0, 1.0);
+		ImVec4 red(1.0, 0.0, 0.0, 1.0);
 
-			sw.com_port	= (port			= clamp(port	, 0, 12));
-			sw.com_timeout = (timeout	= clamp(timeout	, 0, 10000));
-			sw.com_baud = (baud			= clamp(baud	, 0, 115200));
-			
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+		ImGui::Text("System");
+		ImGui::NextColumn();
+		ImGui::Button("        Start        ");
+		ImVec2 uniformButton = ImGui::GetItemRectSize();
+		if (ImGui::IsItemClicked()) {
+			bStartedSystem = true;
+			bStartedImageProc = true;
+			bStartedMotorCont = true;
 		}
-	
+		ImGui::NextColumn();
+		ImGui::Button("Stop", uniformButton);
+		if (ImGui::IsItemClicked()) {
+			bStartedSystem = false;
+			bStartedImageProc = false;
+			bStartedMotorCont = false;
+		}
+		ImGui::NextColumn();
+		ImGui::TextColored(bStartedSystem? green:red, "%7s", bStartedSystem ? "Running" : "Stopped");
+		ImGui::NextColumn();
+
+		if (io.MouseReleased[0]) {
+			printf("a");
+		}
+
+		ImGui::Text("Image Processing");
+		ImGui::NextColumn();
+		ImGui::Button("Start", uniformButton);
+		if (ImGui::IsItemClicked()) {
+			bStartedImageProc = true;
+		}
+		ImGui::NextColumn();
+		ImGui::Button("Stop", uniformButton);
+		if (ImGui::IsItemClicked()) {
+			bStartedImageProc = false;
+			bStartedSystem = false;
+		}
+		ImGui::NextColumn();
+		ImGui::TextColored(bStartedImageProc ? green : red, "%7s", bStartedImageProc ? "Running" : "Stopped");
+		ImGui::NextColumn();
+		
+
+
+		ImGui::Text("Motor Control");
+		ImGui::NextColumn();
+		ImGui::Button("Start", uniformButton);
+		if (ImGui::IsItemClicked()) {
+			bStartedMotorCont = true;
+		}
+		ImGui::NextColumn();
+		ImGui::Button("Stop", uniformButton);
+		if (ImGui::IsItemClicked()) {
+			bStartedMotorCont = false;
+			bStartedSystem = false;
+		}
+		ImGui::NextColumn();
+		ImGui::TextColored(bStartedMotorCont ? green : red, "%7s", bStartedMotorCont ? "Running" : "Stopped");
+		ImGui::NextColumn();
+
+
+
+
+		
+
+
+
+
 		ImGui::Columns(1, nullptr, false);
 
-		if (ImGui::CollapsingHeader("Camera")) {
-			double sensWidth = sw.sensor_width,
-				sensHeight = sw.sensor_height,
-				focalMin = sw.focal_length_min,
-				focalMax = sw.focal_length_max,
-				principalX = sw.principal_x,
-				principalY = sw.principal_y;
-			int imW = sw.imW,
-				imH = sw.imH;
+		ImGui::Separator();
 
-			char cameraAddress[512];
-			strcpy_s<512>(cameraAddress, ((string)sw.camera).c_str());
-			if (ImGui::InputText("Address", cameraAddress, 512)) {
-				sw.camera = std::string(cameraAddress);
-			}
-			ImGui::SameLine(); HelpMarker("The network address of the IP camera.");
-
-			ImGui::InputDouble("Sensor width", &sensWidth);
-			ImGui::SameLine(); HelpMarker("Physical size of sensor in mm.\nOnly needs to be relative to focal length.");
-			ImGui::InputDouble("Sensor height", &sensHeight);
-			ImGui::SameLine(); HelpMarker("Physical size of sensor in mm.\nOnly needs to be relative to focal length.");
-			ImGui::InputDouble("Minimum focal length", &focalMin);
-			ImGui::SameLine(); HelpMarker("The calibrated focal length at minimum zoom.\nOnly needs to be relative to sensor size.");
-			ImGui::InputDouble("Maximum focal length", &focalMax);
-			ImGui::SameLine(); HelpMarker("The calibrated focal length at maximum zoom.\nOnly needs to be relative to sensor size.");
-			ImGui::InputDouble("Principal point X", &principalX);
-			ImGui::SameLine(); HelpMarker("The calibrated center of the image measured in pixels.");
-			ImGui::InputDouble("Principal point Y", &principalY);
-			ImGui::SameLine(); HelpMarker("The calibrated center of the image measured in pixels.");
-			ImGui::InputInt("Image width", &imW);
-			ImGui::SameLine(); HelpMarker("Height of images from the stream.");
-			ImGui::InputInt("Image height", &imH);
-			ImGui::SameLine(); HelpMarker("Height of images from the stream.");
-
-			double inf = std::numeric_limits<double>::infinity();
-
-			sw.sensor_width		= clamp(sensWidth,	0.1, inf);
-			sw.sensor_height	= clamp(sensHeight, 0.1, inf);
-			sw.focal_length_min = clamp(focalMin,	0.1, inf);
-			sw.focal_length_max = clamp(focalMax,	focalMin, inf);
-			sw.principal_x		= clamp(principalX, 0., inf);
-			sw.principal_y		= clamp(principalY, 0., inf);
-			sw.imW				= clamp(imW,		1, INT_MAX);
-			sw.imH				= clamp(imH,		1, INT_MAX);
-		}
-
-		if (ImGui::CollapsingHeader("Image processing")) {
-			int RGS[3] = { sw.thresh_red, sw.thresh_green, sw.thresh_s };
-			float resizeFac = sw.image_resize_factor;
-
-			ImGui::SliderInt3("RGS threshold", RGS, 0, 255);
-			ImGui::SameLine(); HelpMarker("Normalized red, green, and brightness thresholds.");
-			ImGui::SliderFloat("Image resize factor", &resizeFac, 0.05f, 1.0f);
-			ImGui::SameLine(); HelpMarker("Shrinking factor to improve runtime performance.");
-			
-			sw.thresh_red	= clamp(RGS[0], 0, 255);
-			sw.thresh_green = clamp(RGS[1], 0, 255);
-			sw.thresh_s		= clamp(RGS[2], 0, 255);
-			sw.image_resize_factor = clamp(resizeFac, 0.0f, 1.0f);
-		}
-
-		if (ImGui::CollapsingHeader("Motor control")) {
-			double panFac = sw.motor_pan_factor,
-				panMin = sw.motor_pan_min,
-				panMax = sw.motor_pan_max,
-				panFor = sw.motor_pan_forward,
-				tiltFac = sw.motor_tilt_factor,
-				tiltMin = sw.motor_tilt_min,
-				tiltMax = sw.motor_tilt_max,
-				tiltFor = sw.motor_tilt_forward;
-			int depth = sw.motor_buffer_depth;
-
-			ImGui::InputDouble("Pan conversion factor", &panFac);
-			ImGui::SameLine(); HelpMarker("Microseconds per degree.");
-			ImGui::InputDouble("Minimum allowable tilt", &panMin);
-			ImGui::SameLine(); HelpMarker("Safety limit in microseconds");
-			ImGui::InputDouble("Maximum allowable pan", &panMax);
-			ImGui::SameLine(); HelpMarker("Safety limit in microseconds");
-			ImGui::InputDouble("Forward looking pan", &panFor);
-			ImGui::SameLine(); HelpMarker("Microseconds to make the pan motor face forward.");
-			ImGui::InputDouble("Tilt conversion factor", &tiltFac);
-			ImGui::SameLine(); HelpMarker("Microseconds per degree.");
-			ImGui::InputDouble("Minimum allowable tilt", &tiltMin);
-			ImGui::SameLine(); HelpMarker("Safety limit in microseconds");
-			ImGui::InputDouble("Maximum allowable tilt", &tiltMax);
-			ImGui::SameLine(); HelpMarker("Safety limit in microseconds");
-			ImGui::InputDouble("Forward looking tilt", &tiltFor);
-			ImGui::SameLine(); HelpMarker("Microseconds to make the pan motor face forward.");
-			ImGui::InputInt("Latency of camera", &depth);
-			ImGui::SameLine(); HelpMarker("Number of frames from action to received frame");
-		}
-
-		if (ImGui::CollapsingHeader("Display information")) {
-			ImGui::Columns(3, nullptr, false);
-			ImGui::Checkbox("Show RGB image", &sw.show_frame_rgb);
-			ImGui::SameLine(); HelpMarker("Show the resized input image.");
-			ImGui::NextColumn();
-			ImGui::Checkbox("Show masked region", &sw.show_frame_mask);
-			ImGui::SameLine(); HelpMarker("Show the detected mask of the balloon");
-			ImGui::NextColumn();
-			ImGui::Checkbox("Show detection", &sw.show_frame_track);
-			ImGui::SameLine(); HelpMarker("Show a shape indicating the size of the balloon");
-			ImGui::NextColumn();
-
-			ImGui::Columns(1, nullptr, false);
-		}
+		ImGui::Text("Settings");
+		drawSettings(sw);
 
 		ImGui::End();
 
