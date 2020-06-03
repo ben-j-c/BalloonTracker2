@@ -44,6 +44,7 @@ public:
 	}
 
 	virtual void addMember(Document &d) {
+
 	}
 
 	virtual void loadData(Document &d) {
@@ -271,5 +272,12 @@ public:
 		verifyExistance(d);
 		verifyType(d);
 		loadValues(d);
+	}
+
+	void saveSettings(const string& fileName) {
+		std::ofstream fileStream(fileName, std::ofstream::out);
+		if (!fileStream.is_open()) {
+			throw "File was not opened or not found.";
+		}
 	}
 };
