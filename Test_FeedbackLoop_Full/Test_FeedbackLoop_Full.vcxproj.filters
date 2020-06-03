@@ -24,9 +24,6 @@
     <ClCompile Include="..\Network.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\SerialPort.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\BalloonTracker\PanTiltControl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

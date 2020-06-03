@@ -26,7 +26,7 @@
 #include <opencv2/cudaobjdetect.hpp>
 #include <opencv2/cudaoptflow.hpp>
 #include <opencv2/cudastereo.hpp>
-#include <opencv2/cudawarping.hpp>>
+#include <opencv2/cudawarping.hpp>
 
 //C
 #include <stdio.h>

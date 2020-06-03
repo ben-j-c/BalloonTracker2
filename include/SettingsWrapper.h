@@ -58,6 +58,10 @@ public:
 	bool* operator&() {
 		return &data;
 	}
+
+	bool& operator=(const bool& data) {
+		return this->data = data;
+	}
 };
 
 class SettingsEntryInt : public SettingsEntryCommon {
@@ -83,6 +87,10 @@ public:
 
 	int* operator&() {
 		return &data;
+	}
+
+	int& operator=(const int& data) {
+		return this->data = data;
 	}
 };
 
@@ -110,6 +118,10 @@ public:
 	uint32_t* operator&() {
 		return &data;
 	}
+
+	uint32_t& operator=(const uint32_t& data) {
+		return this->data = data;
+	}
 };
 
 class SettingsEntryUInt8 : public SettingsEntryCommon {
@@ -135,6 +147,10 @@ public:
 
 	uint8_t* operator&() {
 		return &data;
+	}
+
+	uint8_t& operator=(const uint8_t& data) {
+		return this->data = data;
 	}
 };
 
@@ -162,6 +178,10 @@ public:
 	double* operator&() {
 		return &data;
 	}
+
+	double& operator=(const double& data) {
+		return this->data = data;
+	}
 };
 
 class SettingsEntryString : public SettingsEntryCommon {
@@ -187,6 +207,10 @@ public:
 
 	string* operator&() {
 		return &data;
+	}
+
+	string& operator=(const string& data) {
+		return this->data = data;
 	}
 };
 

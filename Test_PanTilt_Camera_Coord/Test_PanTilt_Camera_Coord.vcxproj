@@ -156,13 +156,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\CameraMath.h" />
-    <ClInclude Include="..\SettingsWrapper.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\BalloonTracker\PanTiltControl.cpp" />
     <ClCompile Include="..\CameraMath.cpp" />
-    <ClCompile Include="..\SerialPort.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -173,6 +171,14 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\settings.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SerialPort\SerialPort.vcxproj">
+      <Project>{7f9d8da9-50b3-4aa2-8dac-e1dfeaba4089}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\SettingsWrapper\SettingsWrapper.vcxproj">
+      <Project>{c8edd756-6d79-4596-9932-2281bcb32c61}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

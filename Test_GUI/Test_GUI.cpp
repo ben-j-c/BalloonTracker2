@@ -180,7 +180,7 @@ template<class T> T clamp(T val, T min, T max) {
 
 int main() {
 	SettingsWrapper sw("../settings.json");
-	if (!sw.save_directory.size()) {
+	if (!((std::string) sw.save_directory).size()) {
 		sw.save_directory = desktopDirectory();
 	}
 
@@ -246,7 +246,7 @@ int main() {
 					if (ImGui::MenuItem("Save")) {
 						if (!sFileName.size()) {
 							getTimeNowString(sTimeFileName);
-							sFileName = sw.save_directory + "\\" + sTimeFileName;
+							sFileName = (std::string)sw.save_directory + "\\" + sTimeFileName;
 						}
 						saveData({ "A", "B", "C" }, { 1.0,2.0,3.0,4.0,5.0,6.0 }, sFileName);
 					}
@@ -293,7 +293,7 @@ int main() {
 		ImGui::SetWindowPos(ImVec2(0, 0));
 		ImGui::SetWindowSize(ImVec2(display_w/2, display_h));
 
-		ImGui::Text("Save directory: \"%s\"", sw.save_directory.c_str());
+		ImGui::Text("Save directory: \"%s\"", ((std::string) sw.save_directory).c_str());
 		ImGui::Text("File name: \"%s\"", sFileName.size()? sFileName.c_str() : sTimeFileName.c_str());
 		ImGui::Separator();
 
@@ -327,7 +327,7 @@ int main() {
 				imH = sw.imH;
 
 			char cameraAddress[512];
-			strcpy_s<512>(cameraAddress, sw.camera.c_str());
+			strcpy_s<512>(cameraAddress, ((string)sw.camera).c_str());
 			if (ImGui::InputText("Address", cameraAddress, 512)) {
 				sw.camera = std::string(cameraAddress);
 			}

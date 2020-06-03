@@ -159,6 +159,11 @@
   <ItemGroup>
     <None Include="..\settings.json" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SettingsWrapper\SettingsWrapper.vcxproj">
+      <Project>{c8edd756-6d79-4596-9932-2281bcb32c61}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

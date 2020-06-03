@@ -15,21 +15,8 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Test_PanTilt_video.cpp">
+    <ClCompile Include="SettingsWrapper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\BalloonTracker\PanTiltControl.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\BalloonTracker\PanTiltControl.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\settings.json">
-      <Filter>Source Files</Filter>
-    </None>
   </ItemGroup>
 </Project>

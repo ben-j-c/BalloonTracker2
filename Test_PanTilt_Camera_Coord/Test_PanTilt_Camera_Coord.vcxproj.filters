@@ -21,9 +21,6 @@
     <ClInclude Include="..\CameraMath.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\SettingsWrapper.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -33,9 +30,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\CameraMath.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\SerialPort.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\BalloonTracker\PanTiltControl.cpp">

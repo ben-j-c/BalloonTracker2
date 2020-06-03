@@ -18,9 +18,6 @@
     <ClCompile Include="BalloonTracker.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\SerialPort.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="PanTiltControl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -30,9 +27,6 @@
     <ClCompile Include="..\Network.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\SettingsWrapper.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\settings.json">
@@ -40,9 +34,6 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\SettingsWrapper.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\IPCameraTest\FrameBuffer.h">
       <Filter>Source Files</Filter>
     </ClInclude>

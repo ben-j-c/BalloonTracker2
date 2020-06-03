@@ -74,7 +74,6 @@
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(GLFW_x64)/include;$(GLEW_PATH)/include;$(SolutionDir)GUI;$(SolutionDir)include;$(SolutionDir);$(IncludePath)</IncludePath>
     <LibraryPath>$(GLFW_x64)/lib;$(GLEW_PATH)/lib/Release/x64;$(LibraryPath)</LibraryPath>
-    <SourcePath>$(SourcePath)</SourcePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
@@ -172,6 +171,9 @@
   <ItemGroup>
     <ProjectReference Include="..\GUI\GUI.vcxproj">
       <Project>{d40db36e-11d2-475e-9515-43cf53a6828c}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\SettingsWrapper\SettingsWrapper.vcxproj">
+      <Project>{c8edd756-6d79-4596-9932-2281bcb32c61}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
