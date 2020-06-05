@@ -11,6 +11,8 @@ using std::ifstream;
 using rapidjson::Document;
 using rapidjson::Value;
 
+#define SETTINGSENTRY(x, name) SettingsEntry_##x name{ #name }
+
 
 class SettingsEntryCommon;
 namespace SettingsWrapperList {
@@ -20,8 +22,9 @@ namespace SettingsWrapperList {
 class SettingsEntryCommon {
 public:
 	string name;
+	string type;
 
-	SettingsEntryCommon(const std::string& name) : name(name) {
+	SettingsEntryCommon(const std::string& name, const std::string& type) : name(name), type(type) {
 		SettingsWrapperList::all.push_back(this);
 	}
 
@@ -33,11 +36,11 @@ public:
 	virtual void loadData(Document &d) = 0;
 };
 
-class SettingsEntryBool : public SettingsEntryCommon {
+class SettingsEntry_bool : public SettingsEntryCommon {
 public:
 	bool data;
 
-	SettingsEntryBool(const std::string& name) : SettingsEntryCommon(name) {}
+	SettingsEntry_bool(const std::string& name) : SettingsEntryCommon(name, "bool") {}
 
 	virtual bool validateType(Document &d) {
 		return d[name.c_str()].IsBool();
@@ -64,11 +67,11 @@ public:
 	}
 };
 
-class SettingsEntryInt : public SettingsEntryCommon {
+class SettingsEntry_int : public SettingsEntryCommon {
 public:
 	int data;
 
-	SettingsEntryInt(const std::string& name) : SettingsEntryCommon(name) {}
+	SettingsEntry_int(const std::string& name) : SettingsEntryCommon(name, "int") {}
 
 	virtual bool validateType(Document &d) {
 		return d[name.c_str()].IsInt();
@@ -94,11 +97,11 @@ public:
 	}
 };
 
-class SettingsEntryUInt : public SettingsEntryCommon {
+class SettingsEntry_uint32_t : public SettingsEntryCommon {
 public:
 	uint32_t data;
 
-	SettingsEntryUInt(const std::string& name) : SettingsEntryCommon(name) {}
+	SettingsEntry_uint32_t(const std::string& name) : SettingsEntryCommon(name, "uint32_t") {}
 
 	virtual bool validateType(Document &d) {
 		return d[name.c_str()].IsUint();
@@ -124,11 +127,11 @@ public:
 	}
 };
 
-class SettingsEntryUInt8 : public SettingsEntryCommon {
+class SettingsEntry_uint8_t : public SettingsEntryCommon {
 public:
 	uint8_t data;
 
-	SettingsEntryUInt8(const std::string& name) : SettingsEntryCommon(name) {}
+	SettingsEntry_uint8_t(const std::string& name) : SettingsEntryCommon(name, "uint8_t") {}
 
 	virtual bool validateType(Document &d) {
 		return d[name.c_str()].IsUint();
@@ -154,11 +157,11 @@ public:
 	}
 };
 
-class SettingsEntryDouble : public SettingsEntryCommon {
+class SettingsEntry_double : public SettingsEntryCommon {
 public:
 	double data;
 
-	SettingsEntryDouble(const std::string& name) : SettingsEntryCommon(name) {}
+	SettingsEntry_double(const std::string& name) : SettingsEntryCommon(name, "double") {}
 
 	virtual bool validateType(Document &d) {
 		return d[name.c_str()].IsDouble();
@@ -184,11 +187,11 @@ public:
 	}
 };
 
-class SettingsEntryString : public SettingsEntryCommon {
+class SettingsEntry_string : public SettingsEntryCommon {
 public:
 	string data;
 
-	SettingsEntryString(const std::string& name) : SettingsEntryCommon(name) {}
+	SettingsEntry_string(const std::string& name) : SettingsEntryCommon(name, "string") {}
 
 	virtual bool validateType(Document &d) {
 		return d[name.c_str()].IsString();
@@ -216,59 +219,69 @@ public:
 
 class SettingsWrapper {
 public:
-	SettingsEntryBool debug{ "debug" };
+	SETTINGSENTRY(bool, debug);
 
-	SettingsEntryInt com_timeout{ "com_timeout" };
-	SettingsEntryInt com_baud{ "com_baud" };
-	SettingsEntryInt com_port{ "com_port" };
+	SETTINGSENTRY(int, com_timeout);
+	SETTINGSENTRY(int, com_port);
+	SETTINGSENTRY(int, com_baud);
 
-	SettingsEntryString camera{ "camera" };
+	SETTINGSENTRY(string, camera);
 
-	bool socket_enable;
-	SettingsEntryInt socket_port{ "socket_port" };
+	SETTINGSENTRY(bool, socket_enabled);
+	SETTINGSENTRY(int, socket_port);
 
-	SettingsEntryDouble sensor_width{ "sensor_width" };
-	SettingsEntryDouble sensor_height{ "sensor_height" };
-	SettingsEntryDouble focal_length_min{ "focal_length_min" };
-	SettingsEntryDouble focal_length_max{ "focal_length_max" };
-	SettingsEntryDouble principal_x{ "principal_x" };
-	SettingsEntryDouble principal_y{ "principal_y" };
-	SettingsEntryUInt imW{ "imW" };
-	SettingsEntryUInt imH{ "imH" };
-	SettingsEntryDouble image_resize_factor{ "image_resize_factor" };
-	SettingsEntryUInt8 thresh_red{ "thresh_red" };
-	SettingsEntryUInt8 thresh_s{ "thresh_s" };
-	SettingsEntryUInt8 thresh_green{ "thresh_green" };
+	SETTINGSENTRY(double, sensor_width);
+	SETTINGSENTRY(double, sensor_height);
+	SETTINGSENTRY(double, focal_length_min);
+	SETTINGSENTRY(double, focal_length_max);
+	SETTINGSENTRY(double, principal_x);
+	SETTINGSENTRY(double, principal_y);
+	SETTINGSENTRY(uint32_t, imW);
+	SETTINGSENTRY(uint32_t, imH);
+	SETTINGSENTRY(double, image_resize_factor);
+	SETTINGSENTRY(uint8_t, thresh_red);
+	SETTINGSENTRY(uint8_t, thresh_s);
+	SETTINGSENTRY(uint8_t, thresh_green);
 
-	SettingsEntryDouble motor_pan_factor{ "motor_pan_factor" };
-	SettingsEntryDouble motor_pan_min{ "motor_pan_min" };
-	SettingsEntryDouble motor_pan_max{ "motor_pan_max" };
-	SettingsEntryDouble motor_pan_forward{ "motor_pan_forward" };
-	SettingsEntryDouble motor_tilt_factor{ "motor_tilt_factor" };
-	SettingsEntryDouble motor_tilt_min{ "motor_tilt_min" };
-	SettingsEntryDouble motor_tilt_max{ "motor_tilt_max" };
-	SettingsEntryDouble motor_tilt_forward{ "motor_tilt_forward" };
-	SettingsEntryUInt motor_buffer_depth{ "motor_buffer_depth" };
+	SETTINGSENTRY(double, motor_pan_factor);
+	SETTINGSENTRY(double, motor_pan_min);
+	SETTINGSENTRY(double, motor_pan_max);
+	SETTINGSENTRY(double, motor_pan_forward);
+	SETTINGSENTRY(double, motor_tilt_factor);
+	SETTINGSENTRY(double, motor_tilt_min);
+	SETTINGSENTRY(double, motor_tilt_max);
+	SETTINGSENTRY(double, motor_tilt_forward);
+	SETTINGSENTRY(uint32_t, motor_buffer_depth);
 
-	SettingsEntryBool show_frame_rgb{ "show_frame_rgb" };
-	SettingsEntryBool show_frame_mask{ "show_frame_mask" };
-	SettingsEntryBool show_frame_track{ "show_frame_track" };
-	SettingsEntryBool print_coordinates{ "print_coordinates" };
-	SettingsEntryBool print_rotation{ "print_rotation" };
-	SettingsEntryBool print_info{ "print_info" };
+	SETTINGSENTRY(bool, show_frame_rgb);
+	SETTINGSENTRY(bool, show_frame_mask);
+	SETTINGSENTRY(bool, show_frame_track);
+	SETTINGSENTRY(bool, print_coordinates);
+	SETTINGSENTRY(bool, print_rotation);
+	SETTINGSENTRY(bool, print_info);
 
-	SettingsEntryString save_directory{ "save_directory" };
+	SETTINGSENTRY(bool, report_motor_rotation);
+	SETTINGSENTRY(bool, report_perceived_rotation);
+	SETTINGSENTRY(bool, report_pose_estimation);
+	SETTINGSENTRY(bool, report_altitude_estimation);
+	SETTINGSENTRY(bool, report_frame_number);
+
+	SETTINGSENTRY(string, save_directory);
 
 private:
 	void verifyExistance(Document& d) {
 		for (auto& v : SettingsWrapperList::all) {
-			v->validateExistance(d);
+			if (!v->validateExistance(d)) {
+				throw std::runtime_error("JSON setting missing: " + v->name);
+			}
 		}
 	}
 
 	void verifyType(Document& d) {
 		for (auto& v : SettingsWrapperList::all) {
-			v->validateType(d);
+			if (!v->validateType(d)) {
+				throw std::runtime_error("JSON has wrong type: " + v->name + "(should be " + + ")");
+			}
 		}
 	}
 

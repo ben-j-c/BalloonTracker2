@@ -150,6 +150,9 @@
   <ItemGroup>
     <ClCompile Include="SettingsWrapper.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\include\SettingsWrapper.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
