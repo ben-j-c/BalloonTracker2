@@ -198,6 +198,9 @@ template<class T> T clamp(T val, T min, T max) {
 
 void drawSettings(SettingsWrapper& sw) {
 	if (ImGui::CollapsingHeader("COM")) {
+		if(bStartedMotorCont)
+			ImGui::TextColored({1,0,0,1}, "Some settings can't be changed while some systems are running.");
+
 		int port = sw.com_port, timeout = sw.com_timeout, baud = sw.com_baud, baudIndex;
 		const int baudList[] = { 110, 300, 600, 1200, 2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200 };
 
@@ -216,17 +219,20 @@ void drawSettings(SettingsWrapper& sw) {
 		ImGui::NextColumn();
 		ImGui::Combo("Baud", &baudIndex, " 110\0 300\0 600\0 1200\0 2400\0 4800\0 9600\0 14400\0 19200\0 38400\0 57600\0 115200");
 		baud = baudList[baudIndex];
-		std::cout << baud << std::endl;
 
-		sw.com_port = (port = clamp(port, 0, 12));
-		sw.com_timeout = (timeout = clamp(timeout, 0, 10000));
-		sw.com_baud = (baud = clamp(baud, 0, 115200));
+		if (!bStartedMotorCont) {
+			sw.com_port = (port = clamp(port, 0, 12));
+			sw.com_timeout = (timeout = clamp(timeout, 0, 10000));
+			sw.com_baud = (baud = clamp(baud, 0, 115200));
+		}
 
 	}
 
 	ImGui::Columns(1, nullptr, false);
 
 	if (ImGui::CollapsingHeader("Camera")) {
+		if (bStartedImageProc)
+			ImGui::TextColored({ 1,0,0,1 }, "Some settings can't be changed while some systems are running.");
 		double sensWidth = sw.sensor_width,
 			sensHeight = sw.sensor_height,
 			focalMin = sw.focal_length_min,
@@ -238,7 +244,7 @@ void drawSettings(SettingsWrapper& sw) {
 
 		char cameraAddress[512];
 		strcpy_s<512>(cameraAddress, ((string)sw.camera).c_str());
-		if (ImGui::InputText("Address", cameraAddress, 512)) {
+		if (ImGui::InputText("Address", cameraAddress, 512) && !bStartedImageProc) {
 			sw.camera = std::string(cameraAddress);
 		}
 		ImGui::SameLine(); HelpMarker("The network address of the IP camera.");
@@ -268,11 +274,15 @@ void drawSettings(SettingsWrapper& sw) {
 		sw.focal_length_max = clamp(focalMax, focalMin, inf);
 		sw.principal_x = clamp(principalX, 0., inf);
 		sw.principal_y = clamp(principalY, 0., inf);
-		sw.imW = clamp(imW, 1, INT_MAX);
-		sw.imH = clamp(imH, 1, INT_MAX);
+		if (!bStartedImageProc) {
+			sw.imW = clamp(imW, 1, INT_MAX);
+			sw.imH = clamp(imH, 1, INT_MAX);
+		}
 	}
 
 	if (ImGui::CollapsingHeader("Image processing")) {
+		if (bStartedImageProc)
+			ImGui::TextColored({ 1,0,0,1 }, "Some settings can't be changed while some systems are running.");
 		int RGS[3] = { sw.thresh_red, sw.thresh_green, sw.thresh_s };
 		float resizeFac = sw.image_resize_factor;
 
@@ -284,10 +294,12 @@ void drawSettings(SettingsWrapper& sw) {
 		sw.thresh_red = clamp(RGS[0], 0, 255);
 		sw.thresh_green = clamp(RGS[1], 0, 255);
 		sw.thresh_s = clamp(RGS[2], 0, 255);
-		sw.image_resize_factor = clamp(resizeFac, 0.0f, 1.0f);
+		if(!bStartedImageProc)
+			sw.image_resize_factor = clamp(resizeFac, 0.0f, 1.0f);
 	}
 
 	if (ImGui::CollapsingHeader("Motor control")) {
+		ImGui::Text("Some settings can't be changed while some systems are running.");
 		double panFac = sw.motor_pan_factor,
 			panMin = sw.motor_pan_min,
 			panMax = sw.motor_pan_max,
@@ -309,13 +321,27 @@ void drawSettings(SettingsWrapper& sw) {
 		ImGui::InputDouble("Tilt conversion factor", &tiltFac);
 		ImGui::SameLine(); HelpMarker("Microseconds per degree.");
 		ImGui::InputDouble("Minimum allowable tilt", &tiltMin, 0.0, 0.0, "%f microseconds");
-		ImGui::SameLine(); HelpMarker("Safety limit in microseconds");
+		ImGui::SameLine(); HelpMarker("Safety limit in microseconds.");
 		ImGui::InputDouble("Maximum allowable tilt", &tiltMax, 0.0, 0.0, "%f microseconds");
-		ImGui::SameLine(); HelpMarker("Safety limit in microseconds");
+		ImGui::SameLine(); HelpMarker("Safety limit in microseconds.");
 		ImGui::InputDouble("Forward looking tilt", &tiltFor, 0.0, 0.0, "%f microseconds");
 		ImGui::SameLine(); HelpMarker("Microseconds to make the pan motor face forward.");
 		ImGui::InputInt("Latency of camera", &depth);
-		ImGui::SameLine(); HelpMarker("Number of frames from action to received frame");
+		ImGui::SameLine(); HelpMarker("Number of frames from action to received frame.");
+
+		if (!bStartedMotorCont) {
+			sw.motor_pan_factor = panFac;
+			sw.motor_pan_min = panMin;
+			sw.motor_pan_max = panMax;
+			sw.motor_pan_forward; panFor;
+			sw.motor_tilt_factor = tiltFac;
+			sw.motor_tilt_min = tiltMin;
+			sw.motor_tilt_max = tiltMax;
+			sw.motor_tilt_forward = tiltFor;
+		}
+		if (!bStartedImageProc && !bStartedMotorCont) {
+			sw.motor_buffer_depth = depth;
+		}
 	}
 
 	if (ImGui::CollapsingHeader("Display information")) {
@@ -324,17 +350,122 @@ void drawSettings(SettingsWrapper& sw) {
 		ImGui::SameLine(); HelpMarker("Show the resized input image.");
 		ImGui::NextColumn();
 		ImGui::Checkbox("Show masked region", &sw.show_frame_mask);
-		ImGui::SameLine(); HelpMarker("Show the detected mask of the balloon");
+		ImGui::SameLine(); HelpMarker("Show the detected mask of the balloon.");
 		ImGui::NextColumn();
 		ImGui::Checkbox("Show detection", &sw.show_frame_track);
-		ImGui::SameLine(); HelpMarker("Show a shape indicating the size of the balloon");
+		ImGui::SameLine(); HelpMarker("Show a shape indicating the size of the balloon.");
 		ImGui::NextColumn();
+		ImGui::Columns(1, nullptr, false);
+	}
 
+	if (ImGui::CollapsingHeader("Reporting information")) {
+		ImGui::Columns(1, nullptr, false);
+		ImGui::Text("Choose values to be reported in resultant CSV files.");
+		ImGui::Checkbox("Save raw motor rotation information", &sw.report_motor_rotation);
+		ImGui::SameLine(); HelpMarker("Save the rotation of the motors for each data point.");
+		ImGui::Checkbox("Save perceived balloon rotation", &sw.report_perceived_rotation);
+		ImGui::SameLine(); HelpMarker("Save the compounded motor rotation and visual rotation.");
+		ImGui::Checkbox("Save pose estimation", &sw.report_pose_estimation);
+		ImGui::SameLine(); HelpMarker("Save the estimated (x,y,z) location of the balloon");
+		ImGui::Checkbox("Save altitude estimation", &sw.report_altitude_estimation);
+		ImGui::SameLine(); HelpMarker("Save the estimated altitude of the balloon");
+		ImGui::Checkbox("Save frame numbers", &sw.report_pose_estimation);
+		ImGui::SameLine(); HelpMarker("Each data point will have the frame number rather than the\n\
+			closest approximation to when the frame came in.");
 		ImGui::Columns(1, nullptr, false);
 	}
 }
 
 
+
+
+
+
+
+
+
+
+void drawControls(SettingsWrapper& sw) {
+	ImGui::Columns(2, nullptr, false);
+	ImGui::InputDouble("Balloon circumference", &dBalloonCirc, 0, 0, "%.2f cm");
+	ImGui::NextColumn();
+	ImGui::InputDouble("Countdown", &dCountDown, 0, 0, "%.0f seconds");
+	ImGui::Columns(1, nullptr, false);
+	ImGui::ProgressBar(0.95f);
+
+	ImGui::Columns(4, nullptr, false);
+	ImVec4 green(0.0, 1.0, 0.0, 1.0);
+	ImVec4 red(1.0, 0.0, 0.0, 1.0);
+	ImVec4 yellow(1.0, 1.0, 0.0, 1.0);
+
+	std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+	ImGui::Text("Record data");
+	ImGui::NextColumn();
+	ImGui::Button("        Start        ");
+	ImVec2 uniformButton = ImGui::GetItemRectSize();
+	if (ImGui::IsItemClicked()) {
+		bStartedSystem = true;
+		bStartedImageProc = true;
+		bStartedMotorCont = true;
+	}
+	ImGui::NextColumn();
+	ImGui::Button("Stop", uniformButton);
+	if (ImGui::IsItemClicked()) {
+		bStartedSystem = false;
+		bStartedImageProc = false;
+		bStartedMotorCont = false;
+	}
+	ImGui::NextColumn();
+	ImGui::TextColored(bStartedSystem ? green : red, "%7s", bStartedSystem ? "Running" : "Stopped");
+	ImGui::NextColumn();
+
+	ImGui::Text("Image Processing");
+	ImGui::NextColumn();
+	ImGui::Button("Start", uniformButton);
+	if (ImGui::IsItemClicked()) {
+		bStartedImageProc = true;
+	}
+	ImGui::NextColumn();
+	ImGui::Button("Stop", uniformButton);
+	if (ImGui::IsItemClicked()) {
+		bStartedImageProc = false;
+		bStartedSystem = false;
+	}
+	ImGui::NextColumn();
+	ImGui::TextColored(bStartedImageProc ? green : red, "%7s", bStartedImageProc ? "Running" : "Stopped");
+	ImGui::NextColumn();
+
+
+
+	ImGui::Text("Motor Control");
+	ImGui::NextColumn();
+	ImGui::Button("Start", uniformButton);
+	if (ImGui::IsItemClicked()) {
+		bStartedMotorCont = true;
+	}
+	ImGui::NextColumn();
+	ImGui::Button("Stop", uniformButton);
+	if (ImGui::IsItemClicked()) {
+		bStartedMotorCont = false;
+		bStartedSystem = false;
+	}
+	ImGui::NextColumn();
+	ImGui::TextColored(bStartedMotorCont ? green : red, "%7s", bStartedMotorCont ? "Running" : "Stopped");
+	ImGui::NextColumn();
+
+	ImGui::Columns(1, nullptr, false);
+}
+
+
+
+
+
+
+
+void drawRightPanel(SettingsWrapper &sw) {
+
+}
 
 
 
@@ -460,84 +591,8 @@ int main() {
 		ImGui::Text("File name: \"%s\"", sFileName.size()? sFileName.c_str() : sTimeFileName.c_str());
 		ImGui::Separator();
 
-		ImGui::Columns(2, nullptr, false);
-		ImGui::InputDouble("Balloon circumference", &dBalloonCirc, 0, 0, "%.2f cm");
-		ImGui::NextColumn();
-		ImGui::InputDouble("Countdown", &dCountDown, 0, 0, "%.0f seconds");
-
-		ImGui::Columns(4, nullptr, false);
-		ImVec4 green(0.0, 1.0, 0.0, 1.0);
-		ImVec4 red(1.0, 0.0, 0.0, 1.0);
-
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
-		ImGui::Text("System");
-		ImGui::NextColumn();
-		ImGui::Button("        Start        ");
-		ImVec2 uniformButton = ImGui::GetItemRectSize();
-		if (ImGui::IsItemClicked()) {
-			bStartedSystem = true;
-			bStartedImageProc = true;
-			bStartedMotorCont = true;
-		}
-		ImGui::NextColumn();
-		ImGui::Button("Stop", uniformButton);
-		if (ImGui::IsItemClicked()) {
-			bStartedSystem = false;
-			bStartedImageProc = false;
-			bStartedMotorCont = false;
-		}
-		ImGui::NextColumn();
-		ImGui::TextColored(bStartedSystem? green:red, "%7s", bStartedSystem ? "Running" : "Stopped");
-		ImGui::NextColumn();
-
-		if (io.MouseReleased[0]) {
-			printf("a");
-		}
-
-		ImGui::Text("Image Processing");
-		ImGui::NextColumn();
-		ImGui::Button("Start", uniformButton);
-		if (ImGui::IsItemClicked()) {
-			bStartedImageProc = true;
-		}
-		ImGui::NextColumn();
-		ImGui::Button("Stop", uniformButton);
-		if (ImGui::IsItemClicked()) {
-			bStartedImageProc = false;
-			bStartedSystem = false;
-		}
-		ImGui::NextColumn();
-		ImGui::TextColored(bStartedImageProc ? green : red, "%7s", bStartedImageProc ? "Running" : "Stopped");
-		ImGui::NextColumn();
-		
-
-
-		ImGui::Text("Motor Control");
-		ImGui::NextColumn();
-		ImGui::Button("Start", uniformButton);
-		if (ImGui::IsItemClicked()) {
-			bStartedMotorCont = true;
-		}
-		ImGui::NextColumn();
-		ImGui::Button("Stop", uniformButton);
-		if (ImGui::IsItemClicked()) {
-			bStartedMotorCont = false;
-			bStartedSystem = false;
-		}
-		ImGui::NextColumn();
-		ImGui::TextColored(bStartedMotorCont ? green : red, "%7s", bStartedMotorCont ? "Running" : "Stopped");
-		ImGui::NextColumn();
-
-
-
-
-		
-
-
-
-
-		ImGui::Columns(1, nullptr, false);
+		ImGui::Text("System controls");
+		drawControls(sw);
 
 		ImGui::Separator();
 
@@ -556,6 +611,8 @@ int main() {
 			| ImGuiWindowFlags_NoBringToFrontOnFocus);
 		ImGui::SetWindowPos(ImVec2(display_w/2, 0));
 		ImGui::SetWindowSize(ImVec2(display_w/2, display_h));
+
+		drawRightPanel(sw);
 
 		ImGui::End();
 
