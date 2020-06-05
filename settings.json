@@ -4,6 +4,7 @@
   "com_timeout": 10000,
   "com_baud": 115200,
   "camera": "rtsp://192.168.2.168:554/ch1/main/av_stream",
+  "socket_enabled" : false,
   "socket_port": 50000,
   "sensor_width": 4.8,
   "sensor_height": 1.0,
@@ -32,5 +33,10 @@
   "print_coordinates": false,
   "print_rotation": false,
   "print_info": true,
+  "report_motor_rotation": true,
+  "report_perceived_rotation": true,
+  "report_pose_estimation": true,
+  "report_altitude_estimation": true,
+  "report_frame_number": true,
   "save_directory": ""
 }
