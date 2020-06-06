@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <array>
 #include <string>
 #include <iostream>
 #include <iomanip>
@@ -30,6 +31,8 @@
 #pragma comment(lib, "Comdlg32")
 #endif // _WIN64
 
+
+int display_w, display_h;
 
 static bool bStartedSystem = false;
 static bool bStartedImageProc = false;
@@ -299,7 +302,8 @@ void drawSettings(SettingsWrapper& sw) {
 	}
 
 	if (ImGui::CollapsingHeader("Motor control")) {
-		ImGui::Text("Some settings can't be changed while some systems are running.");
+		if (bStartedMotorCont)
+			ImGui::TextColored({ 1,0,0,1 }, "Some settings can't be changed while some systems are running.");
 		double panFac = sw.motor_pan_factor,
 			panMin = sw.motor_pan_min,
 			panMax = sw.motor_pan_max,
@@ -358,7 +362,7 @@ void drawSettings(SettingsWrapper& sw) {
 		ImGui::Columns(1, nullptr, false);
 	}
 
-	if (ImGui::CollapsingHeader("Reporting information")) {
+	if (ImGui::CollapsingHeader("CSV generation")) {
 		ImGui::Columns(1, nullptr, false);
 		ImGui::Text("Choose values to be reported in resultant CSV files.");
 		ImGui::Checkbox("Save raw motor rotation information", &sw.report_motor_rotation);
@@ -370,8 +374,7 @@ void drawSettings(SettingsWrapper& sw) {
 		ImGui::Checkbox("Save altitude estimation", &sw.report_altitude_estimation);
 		ImGui::SameLine(); HelpMarker("Save the estimated altitude of the balloon");
 		ImGui::Checkbox("Save frame numbers", &sw.report_pose_estimation);
-		ImGui::SameLine(); HelpMarker("Each data point will have the frame number rather than the\n\
-			closest approximation to when the frame came in.");
+		ImGui::SameLine(); HelpMarker("Each data point will have the frame number rather than\nthe closest approximation to when the frame came in.");
 		ImGui::Columns(1, nullptr, false);
 	}
 }
@@ -464,7 +467,73 @@ void drawControls(SettingsWrapper& sw) {
 
 
 void drawRightPanel(SettingsWrapper &sw) {
+	static std::vector<std::shared_ptr<char>> lines;
+	static int frameCount;
+	static std::vector<float> panData;
+	static std::vector<float> tiltData;
 
+	static std::vector<float> altitudeData;
+
+	static std::vector<char*> linesPtr;
+
+	static int lastUpdate;
+	static bool updateGraphs = true;
+
+	static int currentLine = 0;
+	if (lines.size() < 1) {
+		lines.emplace_back(new char[512]);
+		linesPtr.emplace_back(lines[0].get());
+		sprintf(lines[0].get(), "%15s %15s %15s %15s", "Frame#", "Pan", "Tilt", "Altitude");
+	}
+	while (lines.size() < 100) {
+		lines.emplace_back(new char[512]);
+		char* last = lines[lines.size() - 1].get();
+		sprintf(last, "%15d %15.2f %15.2f %15.2f", lines.size()-1, 2.0f, 3.0f, 4.0f);
+		linesPtr.emplace_back(last);
+	}
+
+	ImGui::Columns(1);
+
+	float gHeight = display_h * 0.1f;
+	float gWidth = ImGui::GetWindowSize().x;
+	ImGui::Text("Collected data:");
+	ImGui::SetNextItemWidth(gWidth*0.985f);
+	ImGui::ListBox("", &currentLine, linesPtr.data(), lines.size(), 7);
+	
+	ImGui::Separator();
+
+	static int indexA = 0, indexB = 0;
+	ImGui::Text("Motor Pan (degrees):"); ImGui::SameLine(); HelpMarker("Physical rotation of the pan motor.");
+	ImGui::PlotLines("", panData.data() + indexA, indexB - indexA, 0, "", -90, 90, { gWidth , gHeight });
+	ImGui::Text("Motor Tilt (degrees):"); ImGui::SameLine(); HelpMarker("Physical rotation of the tilt motor.");
+	ImGui::PlotLines("", tiltData.data() + indexA, indexB - indexA, 0, "", -90, 90, { gWidth, gHeight });
+	float maxAltitude = 0;
+	if(frameCount != 0)
+		maxAltitude = *std::max_element(altitudeData.begin() + indexA, altitudeData.begin() + indexB);
+
+	ImGui::Text("Balloon Altitude (mm):"); ImGui::SameLine(); HelpMarker("Perceived altitude of the balloon.");
+	ImGui::PlotLines("",	altitudeData.data() + indexA, indexB - indexA, 0, "", 0, maxAltitude, { gWidth, gHeight });
+	ImGui::Text("Perceived Pan (degrees):"); ImGui::SameLine();
+	HelpMarker("Perceived bearing of the balloon considering all variables.");
+	ImGui::PlotLines("",	altitudeData.data() + indexA, indexB - indexA, 0, "", 0, maxAltitude, { gWidth, gHeight });
+	ImGui::Text("Perceived Tilt (degrees):"); ImGui::SameLine();
+	HelpMarker("Perceived bearing of the balloon considering all variables.");
+	ImGui::PlotLines("",	altitudeData.data() + indexA, indexB - indexA, 0, "", 0, maxAltitude, { gWidth, gHeight });
+	ImGui::Checkbox("Scrolling graphs", &updateGraphs);
+	ImGui::SliderInt("Display range min", &indexA, 0, indexB);
+	ImGui::SliderInt("Display range max", &indexB, indexA, frameCount-1);
+
+	panData.emplace_back(90 * sinf((frameCount / 1) / 100.0f*3.14159f*2.0f));
+	tiltData.emplace_back(90 * cosf((frameCount / 1) / 100.0f*3.14159f*2.0f));
+	altitudeData.emplace_back(frameCount*frameCount / 10000.0f*(panData[frameCount]/180.0f + 0.5f));
+	maxAltitude = max(maxAltitude, altitudeData[altitudeData.size()-1]);
+
+	if (updateGraphs) {
+		lastUpdate = frameCount;
+		indexB = lastUpdate;
+	}
+		
+	frameCount++;
 }
 
 
@@ -513,7 +582,7 @@ int main() {
 	ImGui_ImplOpenGL3_Init(glsl_version);
 
 
-	int display_w, display_h;
+	
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
 		glfwGetFramebufferSize(window, &display_w, &display_h);
