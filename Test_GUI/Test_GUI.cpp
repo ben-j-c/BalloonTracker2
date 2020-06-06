@@ -39,6 +39,7 @@ static bool bStartedImageProc = false;
 static bool bStartedMotorCont= false;
 static double dBalloonCirc = 37.5;
 static double dCountDown = 30;
+static float fBearing = 0;
 
 
 
@@ -399,8 +400,11 @@ void drawControls(SettingsWrapper& sw) {
 	ImGui::InputDouble("Balloon circumference", &dBalloonCirc, 0, 0, "%.2f cm");
 	ImGui::NextColumn();
 	ImGui::InputDouble("Countdown", &dCountDown, 0, 0, "%.0f seconds");
-	ImGui::Columns(1, nullptr, false);
+	ImGui::NextColumn();
+	ImGui::SliderFloat("Bearing", &fBearing, 0, 360, "%.1f degrees");
+	ImGui::NextColumn();
 	ImGui::ProgressBar(0.95f);
+	ImGui::Columns(1, nullptr, false);
 
 	ImGui::Columns(4, nullptr, false);
 	ImVec4 green(0.0, 1.0, 0.0, 1.0);
