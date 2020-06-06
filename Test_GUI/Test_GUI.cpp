@@ -349,17 +349,23 @@ void drawSettings(SettingsWrapper& sw) {
 	}
 
 	if (ImGui::CollapsingHeader("Display information")) {
-		ImGui::Columns(3, nullptr, false);
+		ImGui::Columns(1);
 		ImGui::Checkbox("Show RGB image", &sw.show_frame_rgb);
 		ImGui::SameLine(); HelpMarker("Show the resized input image.");
 		ImGui::NextColumn();
 		ImGui::Checkbox("Show masked region", &sw.show_frame_mask);
 		ImGui::SameLine(); HelpMarker("Show the detected mask of the balloon.");
+		ImGui::Checkbox("Show S masked region", &sw.show_frame_mask_s);
+		ImGui::SameLine(); HelpMarker("Show mask from thresholded S values.");
+		ImGui::Checkbox("Show R masked region", &sw.show_frame_mask_r);
+		ImGui::SameLine(); HelpMarker("Show mask from thresholded R values.");
+		ImGui::Checkbox("Show G masked region", &sw.show_frame_mask_g);
+		ImGui::SameLine(); HelpMarker("Show mask from thresholded G values.");
 		ImGui::NextColumn();
 		ImGui::Checkbox("Show detection", &sw.show_frame_track);
 		ImGui::SameLine(); HelpMarker("Show a shape indicating the size of the balloon.");
 		ImGui::NextColumn();
-		ImGui::Columns(1, nullptr, false);
+		ImGui::Columns(1);
 	}
 
 	if (ImGui::CollapsingHeader("CSV generation")) {

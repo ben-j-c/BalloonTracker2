@@ -227,7 +227,7 @@ public:
 
 	SETTINGSENTRY(string, camera);
 
-	SETTINGSENTRY(bool, socket_enabled);
+	SETTINGSENTRY(bool, socket_enable);
 	SETTINGSENTRY(int, socket_port);
 
 	SETTINGSENTRY(double, sensor_width);
@@ -255,6 +255,9 @@ public:
 
 	SETTINGSENTRY(bool, show_frame_rgb);
 	SETTINGSENTRY(bool, show_frame_mask);
+	SETTINGSENTRY(bool, show_frame_mask_s);
+	SETTINGSENTRY(bool, show_frame_mask_r);
+	SETTINGSENTRY(bool, show_frame_mask_g);
 	SETTINGSENTRY(bool, show_frame_track);
 	SETTINGSENTRY(bool, print_coordinates);
 	SETTINGSENTRY(bool, print_rotation);
@@ -298,6 +301,7 @@ public:
 	SettingsWrapper() = default;
 
 	void loadSettings(const string& fileName) {
+
 		std::ifstream fileStream(fileName, std::ifstream::in);
 		if (!fileStream.is_open()) {
 			throw "File was not opened or not found.";

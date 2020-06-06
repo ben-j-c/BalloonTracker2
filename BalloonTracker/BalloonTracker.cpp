@@ -328,6 +328,13 @@ void processFrames() {
 		if(sw.show_frame_mask)
 			imshow("blob", displayFrame);
 
+		if (sw.show_frame_mask_r)
+			imshow("Mask R", chroma[0]);
+		if (sw.show_frame_mask_g)
+			imshow("Mask G", chroma[1]);;
+		if (sw.show_frame_mask_s)
+			imshow("Mask S", chroma[3]);;
+
 		frameCount++;
 		//get the input from the keyboard
 		keyboard = (char)waitKey(1);
