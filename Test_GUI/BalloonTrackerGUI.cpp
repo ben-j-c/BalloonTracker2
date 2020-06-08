@@ -35,6 +35,8 @@
 int display_w, display_h;
 
 namespace GUI {
+	std::vector<GUI::DataPoint> data;
+
 	bool bStartSystemRequest = false;
 	bool bStopSystemRequest = false;
 	bool bStartImageProcRequest = false;
@@ -43,7 +45,7 @@ namespace GUI {
 	bool bStopMotorContRequest = false;
 	double dBalloonCirc = 37.5;
 	double dCountDown = 30;
-	double dCountDownValue = 0;
+	double dCountDownValue;
 	float fBearing = 0;
 }
 
@@ -177,6 +179,54 @@ static void saveData(std::vector<std::string> cols,
 		out << data[i*stride];
 		for (int j = 1; j < stride; j++) {
 			out << "," << data[i*stride + j];
+		}
+	}
+}
+
+static void saveData(const std::string& fileName, SettingsWrapper &sw) {
+	std::ofstream out;
+	out.open(fileName);
+	if (!out.is_open())
+		return;
+
+	if (sw.report_frame_number) {
+		out << "Frame";
+	}
+	else {
+		out << "Time";
+	}
+	if (sw.report_pose_estimation) {
+		out << ",X,Y,Z";
+	}
+	if (sw.report_altitude_estimation) {
+		out << ",Altitude";
+	}
+	if (sw.report_motor_rotation) {
+		out << ",mPan,mTilt";
+	}
+	if (sw.report_perceived_rotation) {
+		out << ",pPan,pTilt";
+	}
+
+	for (int i = 0; i < GUI::data.size(); i++) {
+		out << "," << std::endl;
+		if (sw.report_frame_number) {
+			out << data[i].index;
+		}
+		else {
+			out << (double) data[i].index / sw.camera_framerate;
+		}
+		if (sw.report_pose_estimation) {
+			out << "," << data[i].x << "," << data[i].y << "," << data[i].z;
+		}
+		if (sw.report_altitude_estimation) {
+			out << "," << data[i].y;
+		}
+		if (sw.report_motor_rotation) {
+			out << "," << data[i].mPan << "," << data[i].mTilt;
+		}
+		if (sw.report_perceived_rotation) {
+			out << "," << data[i].pPan << "," << data[i].pTilt;
 		}
 	}
 }
@@ -419,7 +469,6 @@ void drawSettings(SettingsWrapper& sw) {
 
 
 
-
 void drawControls(SettingsWrapper& sw) {
 	ImGui::Columns(2, nullptr, false);
 	ImGui::InputDouble("Balloon circumference", &dBalloonCirc, 0, 0, "%.2f cm");
@@ -428,15 +477,14 @@ void drawControls(SettingsWrapper& sw) {
 	ImGui::NextColumn();
 	ImGui::SliderFloat("Bearing", &fBearing, 0, 360, "%.1f degrees");
 	ImGui::NextColumn();
-	ImGui::ProgressBar(0.95f);
+	ImGui::ProgressBar(dCountDownValue / dCountDown, {-1, 0},
+		(std::to_string((int) (dCountDown - dCountDownValue)) + " seconds").c_str());
 	ImGui::Columns(1, nullptr, false);
 
 	ImGui::Columns(4, nullptr, false);
 	ImVec4 green(0.0, 1.0, 0.0, 1.0);
 	ImVec4 red(1.0, 0.0, 0.0, 1.0);
 	ImVec4 yellow(1.0, 1.0, 0.0, 1.0);
-
-	std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
 	ImGui::Text("Record data");
 	ImGui::NextColumn();
@@ -577,9 +625,7 @@ void drawRightPanel(SettingsWrapper &sw) {
 
 
 
-
-int main() {
-	SettingsWrapper sw("../settings.json");
+int GUI::StartGUI(SettingsWrapper &sw) {
 	if (!((std::string) sw.save_directory).size()) {
 		sw.save_directory = desktopDirectory();
 	}
@@ -640,7 +686,7 @@ int main() {
 						std::string sFileResult = getFileDialog(true, L"Table\0*.CSV\0All\0*.*\0", sw.save_directory);
 						if (sFileResult.size()) {
 							sFileName = sFileResult;
-							saveData({ "A", "B", "C" }, { 1.0,2.0,3.0,4.0,5.0,6.0 }, sFileName);
+							saveData(sFileName, sw);
 						}
 					}
 					if (ImGui::MenuItem("Save")) {
@@ -648,7 +694,7 @@ int main() {
 							getTimeNowString(sTimeFileName);
 							sFileName = (std::string)sw.save_directory + "\\" + sTimeFileName;
 						}
-						saveData({ "A", "B", "C" }, { 1.0,2.0,3.0,4.0,5.0,6.0 }, sFileName);
+						saveData(sFileName, sw);
 					}
 					else if (ImGui::IsItemHovered()) {
 
@@ -739,4 +785,9 @@ int main() {
 	glfwTerminate();
 
 	return 0;
+}
+
+int main() {
+	SettingsWrapper sw("../settings.json");
+	return GUI::StartGUI(sw);
 }

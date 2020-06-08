@@ -226,6 +226,7 @@ public:
 	SETTINGSENTRY(int, com_baud);
 
 	SETTINGSENTRY(string, camera);
+	SETTINGSENTRY(uint32_t, camera_framerate);
 
 	SETTINGSENTRY(bool, socket_enable);
 	SETTINGSENTRY(int, socket_port);
