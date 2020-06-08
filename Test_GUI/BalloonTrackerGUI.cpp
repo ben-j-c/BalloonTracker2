@@ -1,4 +1,4 @@
-#include "Test_GUI.h"
+#include "BalloonTrackerGUI.h"
 #include "SettingsWrapper.h"
 
 #include <iostream>
@@ -34,9 +34,12 @@
 
 int display_w, display_h;
 
-static bool bStartedSystem = false;
-static bool bStartedImageProc = false;
-static bool bStartedMotorCont= false;
+static bool bStartSystemRequest = false;
+static bool bStopSystemRequest = false;
+static bool bStartImageProcRequest = false;
+static bool bStopImageProcRequest = false;
+static bool bStartMotorContRequest= false;
+static bool bStopMotorContRequest= false;
 static double dBalloonCirc = 37.5;
 static double dCountDown = 30;
 static float fBearing = 0;
@@ -202,7 +205,7 @@ template<class T> T clamp(T val, T min, T max) {
 
 void drawSettings(SettingsWrapper& sw) {
 	if (ImGui::CollapsingHeader("COM")) {
-		if(bStartedMotorCont)
+		if(bStartMotorContRequest)
 			ImGui::TextColored({1,0,0,1}, "Some settings can't be changed while some systems are running.");
 
 		int port = sw.com_port, timeout = sw.com_timeout, baud = sw.com_baud, baudIndex;
@@ -224,7 +227,7 @@ void drawSettings(SettingsWrapper& sw) {
 		ImGui::Combo("Baud", &baudIndex, " 110\0 300\0 600\0 1200\0 2400\0 4800\0 9600\0 14400\0 19200\0 38400\0 57600\0 115200");
 		baud = baudList[baudIndex];
 
-		if (!bStartedMotorCont) {
+		if (!bStartMotorContRequest) {
 			sw.com_port = (port = clamp(port, 0, 12));
 			sw.com_timeout = (timeout = clamp(timeout, 0, 10000));
 			sw.com_baud = (baud = clamp(baud, 0, 115200));
@@ -235,7 +238,7 @@ void drawSettings(SettingsWrapper& sw) {
 	ImGui::Columns(1, nullptr, false);
 
 	if (ImGui::CollapsingHeader("Camera")) {
-		if (bStartedImageProc)
+		if (bStartImageProcRequest)
 			ImGui::TextColored({ 1,0,0,1 }, "Some settings can't be changed while some systems are running.");
 		double sensWidth = sw.sensor_width,
 			sensHeight = sw.sensor_height,
@@ -248,7 +251,7 @@ void drawSettings(SettingsWrapper& sw) {
 
 		char cameraAddress[512];
 		strcpy_s<512>(cameraAddress, ((string)sw.camera).c_str());
-		if (ImGui::InputText("Address", cameraAddress, 512) && !bStartedImageProc) {
+		if (ImGui::InputText("Address", cameraAddress, 512) && !bStartImageProcRequest) {
 			sw.camera = std::string(cameraAddress);
 		}
 		ImGui::SameLine(); HelpMarker("The network address of the IP camera.");
@@ -278,14 +281,14 @@ void drawSettings(SettingsWrapper& sw) {
 		sw.focal_length_max = clamp(focalMax, focalMin, inf);
 		sw.principal_x = clamp(principalX, 0., inf);
 		sw.principal_y = clamp(principalY, 0., inf);
-		if (!bStartedImageProc) {
+		if (!bStartImageProcRequest) {
 			sw.imW = clamp(imW, 1, INT_MAX);
 			sw.imH = clamp(imH, 1, INT_MAX);
 		}
 	}
 
 	if (ImGui::CollapsingHeader("Image processing")) {
-		if (bStartedImageProc)
+		if (bStartImageProcRequest)
 			ImGui::TextColored({ 1,0,0,1 }, "Some settings can't be changed while some systems are running.");
 		int RGS[3] = { sw.thresh_red, sw.thresh_green, sw.thresh_s };
 		float resizeFac = sw.image_resize_factor;
@@ -298,12 +301,12 @@ void drawSettings(SettingsWrapper& sw) {
 		sw.thresh_red = clamp(RGS[0], 0, 255);
 		sw.thresh_green = clamp(RGS[1], 0, 255);
 		sw.thresh_s = clamp(RGS[2], 0, 255);
-		if(!bStartedImageProc)
+		if(!bStartImageProcRequest)
 			sw.image_resize_factor = clamp(resizeFac, 0.0f, 1.0f);
 	}
 
 	if (ImGui::CollapsingHeader("Motor control")) {
-		if (bStartedMotorCont)
+		if (bStartMotorContRequest)
 			ImGui::TextColored({ 1,0,0,1 }, "Some settings can't be changed while some systems are running.");
 		double panFac = sw.motor_pan_factor,
 			panMin = sw.motor_pan_min,
@@ -334,7 +337,7 @@ void drawSettings(SettingsWrapper& sw) {
 		ImGui::InputInt("Latency of camera", &depth);
 		ImGui::SameLine(); HelpMarker("Number of frames from action to received frame.");
 
-		if (!bStartedMotorCont) {
+		if (!bStartMotorContRequest) {
 			sw.motor_pan_factor = panFac;
 			sw.motor_pan_min = panMin;
 			sw.motor_pan_max = panMax;
@@ -344,7 +347,7 @@ void drawSettings(SettingsWrapper& sw) {
 			sw.motor_tilt_max = tiltMax;
 			sw.motor_tilt_forward = tiltFor;
 		}
-		if (!bStartedImageProc && !bStartedMotorCont) {
+		if (!bStartImageProcRequest && !bStartMotorContRequest) {
 			sw.motor_buffer_depth = depth;
 		}
 	}
@@ -418,35 +421,35 @@ void drawControls(SettingsWrapper& sw) {
 	ImGui::Button("        Start        ");
 	ImVec2 uniformButton = ImGui::GetItemRectSize();
 	if (ImGui::IsItemClicked()) {
-		bStartedSystem = true;
-		bStartedImageProc = true;
-		bStartedMotorCont = true;
+		bStartSystemRequest = true;
+		bStartImageProcRequest = true;
+		bStartMotorContRequest = true;
 	}
 	ImGui::NextColumn();
 	ImGui::Button("Stop", uniformButton);
 	if (ImGui::IsItemClicked()) {
-		bStartedSystem = false;
-		bStartedImageProc = false;
-		bStartedMotorCont = false;
+		bStartSystemRequest = false;
+		bStartImageProcRequest = false;
+		bStartMotorContRequest = false;
 	}
 	ImGui::NextColumn();
-	ImGui::TextColored(bStartedSystem ? green : red, "%7s", bStartedSystem ? "Running" : "Stopped");
+	ImGui::TextColored(bStartSystemRequest ? green : red, "%7s", bStartSystemRequest ? "Running" : "Stopped");
 	ImGui::NextColumn();
 
 	ImGui::Text("Image Processing");
 	ImGui::NextColumn();
 	ImGui::Button("Start", uniformButton);
 	if (ImGui::IsItemClicked()) {
-		bStartedImageProc = true;
+		bStartImageProcRequest = true;
 	}
 	ImGui::NextColumn();
 	ImGui::Button("Stop", uniformButton);
 	if (ImGui::IsItemClicked()) {
-		bStartedImageProc = false;
-		bStartedSystem = false;
+		bStartImageProcRequest = false;
+		bStartSystemRequest = false;
 	}
 	ImGui::NextColumn();
-	ImGui::TextColored(bStartedImageProc ? green : red, "%7s", bStartedImageProc ? "Running" : "Stopped");
+	ImGui::TextColored(bStartImageProcRequest ? green : red, "%7s", bStartImageProcRequest ? "Running" : "Stopped");
 	ImGui::NextColumn();
 
 
@@ -455,16 +458,16 @@ void drawControls(SettingsWrapper& sw) {
 	ImGui::NextColumn();
 	ImGui::Button("Start", uniformButton);
 	if (ImGui::IsItemClicked()) {
-		bStartedMotorCont = true;
+		bStartMotorContRequest = true;
 	}
 	ImGui::NextColumn();
 	ImGui::Button("Stop", uniformButton);
 	if (ImGui::IsItemClicked()) {
-		bStartedMotorCont = false;
-		bStartedSystem = false;
+		bStartMotorContRequest = false;
+		bStartSystemRequest = false;
 	}
 	ImGui::NextColumn();
-	ImGui::TextColored(bStartedMotorCont ? green : red, "%7s", bStartedMotorCont ? "Running" : "Stopped");
+	ImGui::TextColored(bStartMotorContRequest ? green : red, "%7s", bStartMotorContRequest ? "Running" : "Stopped");
 	ImGui::NextColumn();
 
 	ImGui::Columns(1, nullptr, false);
