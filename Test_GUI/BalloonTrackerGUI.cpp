@@ -34,19 +34,20 @@
 
 int display_w, display_h;
 
-static bool bStartSystemRequest = false;
-static bool bStopSystemRequest = false;
-static bool bStartImageProcRequest = false;
-static bool bStopImageProcRequest = false;
-static bool bStartMotorContRequest= false;
-static bool bStopMotorContRequest= false;
-static double dBalloonCirc = 37.5;
-static double dCountDown = 30;
-static float fBearing = 0;
+namespace GUI {
+	bool bStartSystemRequest = false;
+	bool bStopSystemRequest = false;
+	bool bStartImageProcRequest = false;
+	bool bStopImageProcRequest = false;
+	bool bStartMotorContRequest = false;
+	bool bStopMotorContRequest = false;
+	double dBalloonCirc = 37.5;
+	double dCountDown = 30;
+	double dCountDownValue = 0;
+	float fBearing = 0;
+}
 
-
-
-
+using namespace GUI;
 
 
 
@@ -127,7 +128,7 @@ static std::string getFileDialog(bool save, const wchar_t* filter, const std::st
 static std::string getFolderDialog() {
 #ifdef _WIN64
 	BROWSEINFOA info;
-	wchar_t wcfolderName[MAX_PATH] = {0};
+	wchar_t wcfolderName[MAX_PATH] = { 0 };
 	char titleBar[] = "Select save directory";
 	ZeroMemory(&info, sizeof(info));
 
@@ -138,7 +139,7 @@ static std::string getFolderDialog() {
 	auto folder = SHBrowseForFolderA(&info);
 	if (folder == nullptr)
 		return "";
-	
+
 	if (!SHGetPathFromIDList(folder, wcfolderName))
 		return false;
 
@@ -171,7 +172,7 @@ static void saveData(std::vector<std::string> cols,
 		out << "," << cols[i];
 	}
 
-	for (int i = 0; i < size/stride; i++) {
+	for (int i = 0; i < size / stride; i++) {
 		out << "," << std::endl;
 		out << data[i*stride];
 		for (int j = 1; j < stride; j++) {
@@ -209,10 +210,25 @@ template<class T> T clamp(T val, T min, T max) {
 	return val;
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 void drawSettings(SettingsWrapper& sw) {
 	if (ImGui::CollapsingHeader("COM")) {
-		if(bStartMotorContRequest)
-			ImGui::TextColored({1,0,0,1}, "Some settings can't be changed while some systems are running.");
+		if (bStartMotorContRequest)
+			ImGui::TextColored({ 1,0,0,1 }, "Some settings can't be changed while some systems are running.");
 
 		int port = sw.com_port, timeout = sw.com_timeout, baud = sw.com_baud, baudIndex;
 		const int baudList[] = { 110, 300, 600, 1200, 2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200 };
@@ -307,7 +323,7 @@ void drawSettings(SettingsWrapper& sw) {
 		sw.thresh_red = clamp(RGS[0], 0, 255);
 		sw.thresh_green = clamp(RGS[1], 0, 255);
 		sw.thresh_s = clamp(RGS[2], 0, 255);
-		if(!bStartImageProcRequest)
+		if (!bStartImageProcRequest)
 			sw.image_resize_factor = clamp(resizeFac, 0.0f, 1.0f);
 	}
 
@@ -434,9 +450,9 @@ void drawControls(SettingsWrapper& sw) {
 	ImGui::NextColumn();
 	ImGui::Button("Stop", uniformButton);
 	if (ImGui::IsItemClicked()) {
-		bStartSystemRequest = false;
-		bStartImageProcRequest = false;
-		bStartMotorContRequest = false;
+		bStopSystemRequest = true;
+		bStopImageProcRequest = true;
+		bStopMotorContRequest = true;
 	}
 	ImGui::NextColumn();
 	ImGui::TextColored(bStartSystemRequest ? green : red, "%7s", bStartSystemRequest ? "Running" : "Stopped");
@@ -451,8 +467,8 @@ void drawControls(SettingsWrapper& sw) {
 	ImGui::NextColumn();
 	ImGui::Button("Stop", uniformButton);
 	if (ImGui::IsItemClicked()) {
-		bStartImageProcRequest = false;
-		bStartSystemRequest = false;
+		bStopSystemRequest = true;
+		bStopImageProcRequest = true;
 	}
 	ImGui::NextColumn();
 	ImGui::TextColored(bStartImageProcRequest ? green : red, "%7s", bStartImageProcRequest ? "Running" : "Stopped");
@@ -469,8 +485,8 @@ void drawControls(SettingsWrapper& sw) {
 	ImGui::NextColumn();
 	ImGui::Button("Stop", uniformButton);
 	if (ImGui::IsItemClicked()) {
-		bStartMotorContRequest = false;
-		bStartSystemRequest = false;
+		bStopSystemRequest = true;
+		bStopMotorContRequest = true;
 	}
 	ImGui::NextColumn();
 	ImGui::TextColored(bStartMotorContRequest ? green : red, "%7s", bStartMotorContRequest ? "Running" : "Stopped");
@@ -507,7 +523,7 @@ void drawRightPanel(SettingsWrapper &sw) {
 	while (lines.size() < 100) {
 		lines.emplace_back(new char[512]);
 		char* last = lines[lines.size() - 1].get();
-		sprintf(last, "%15d %15.2f %15.2f %15.2f", lines.size()-1, 2.0f, 3.0f, 4.0f);
+		sprintf(last, "%15d %15.2f %15.2f %15.2f", lines.size() - 1, 2.0f, 3.0f, 4.0f);
 		linesPtr.emplace_back(last);
 	}
 
@@ -518,7 +534,7 @@ void drawRightPanel(SettingsWrapper &sw) {
 	ImGui::Text("Collected data:");
 	ImGui::SetNextItemWidth(gWidth*0.985f);
 	ImGui::ListBox("", &currentLine, linesPtr.data(), lines.size(), 7);
-	
+
 	ImGui::Separator();
 
 	static int indexA = 0, indexB = 0;
@@ -527,31 +543,31 @@ void drawRightPanel(SettingsWrapper &sw) {
 	ImGui::Text("Motor Tilt (degrees):"); ImGui::SameLine(); HelpMarker("Physical rotation of the tilt motor.");
 	ImGui::PlotLines("", tiltData.data() + indexA, indexB - indexA, 0, "", -90, 90, { gWidth, gHeight });
 	float maxAltitude = 0;
-	if(frameCount != 0)
+	if (frameCount != 0)
 		maxAltitude = *std::max_element(altitudeData.begin() + indexA, altitudeData.begin() + indexB);
 
 	ImGui::Text("Balloon Altitude (mm):"); ImGui::SameLine(); HelpMarker("Perceived altitude of the balloon.");
-	ImGui::PlotLines("",	altitudeData.data() + indexA, indexB - indexA, 0, "", 0, maxAltitude, { gWidth, gHeight });
+	ImGui::PlotLines("", altitudeData.data() + indexA, indexB - indexA, 0, "", 0, maxAltitude, { gWidth, gHeight });
 	ImGui::Text("Perceived Pan (degrees):"); ImGui::SameLine();
 	HelpMarker("Perceived bearing of the balloon considering all variables.");
-	ImGui::PlotLines("",	altitudeData.data() + indexA, indexB - indexA, 0, "", 0, maxAltitude, { gWidth, gHeight });
+	ImGui::PlotLines("", altitudeData.data() + indexA, indexB - indexA, 0, "", 0, maxAltitude, { gWidth, gHeight });
 	ImGui::Text("Perceived Tilt (degrees):"); ImGui::SameLine();
 	HelpMarker("Perceived bearing of the balloon considering all variables.");
-	ImGui::PlotLines("",	altitudeData.data() + indexA, indexB - indexA, 0, "", 0, maxAltitude, { gWidth, gHeight });
+	ImGui::PlotLines("", altitudeData.data() + indexA, indexB - indexA, 0, "", 0, maxAltitude, { gWidth, gHeight });
 	ImGui::Checkbox("Scrolling graphs", &updateGraphs);
 	ImGui::SliderInt("Display range min", &indexA, 0, indexB);
-	ImGui::SliderInt("Display range max", &indexB, indexA, frameCount-1);
+	ImGui::SliderInt("Display range max", &indexB, indexA, frameCount - 1);
 
 	panData.emplace_back(90 * sinf((frameCount / 1) / 100.0f*3.14159f*2.0f));
 	tiltData.emplace_back(90 * cosf((frameCount / 1) / 100.0f*3.14159f*2.0f));
-	altitudeData.emplace_back(frameCount*frameCount / 10000.0f*(panData[frameCount]/180.0f + 0.5f));
-	maxAltitude = max(maxAltitude, altitudeData[altitudeData.size()-1]);
+	altitudeData.emplace_back(frameCount*frameCount / 10000.0f*(panData[frameCount] / 180.0f + 0.5f));
+	maxAltitude = max(maxAltitude, altitudeData[altitudeData.size() - 1]);
 
 	if (updateGraphs) {
 		lastUpdate = frameCount;
 		indexB = lastUpdate;
 	}
-		
+
 	frameCount++;
 }
 
@@ -578,7 +594,7 @@ int main() {
 	const char* glsl_version = "#version 130";
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-	GLFWwindow* window = glfwCreateWindow(640*2, 720,
+	GLFWwindow* window = glfwCreateWindow(640 * 2, 720,
 		"BalloonTracker", NULL, NULL);
 	if (window == NULL) {
 		fprintf(stderr, "Failed to open window\n");
@@ -601,7 +617,7 @@ int main() {
 	ImGui_ImplOpenGL3_Init(glsl_version);
 
 
-	
+
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
 		glfwGetFramebufferSize(window, &display_w, &display_h);
@@ -635,7 +651,7 @@ int main() {
 						saveData({ "A", "B", "C" }, { 1.0,2.0,3.0,4.0,5.0,6.0 }, sFileName);
 					}
 					else if (ImGui::IsItemHovered()) {
-						
+
 						ImGui::BeginTooltip();
 						ImGui::Text(sTimeFileName.c_str());
 						ImGui::EndTooltip();
@@ -673,10 +689,10 @@ int main() {
 			| ImGuiWindowFlags_MenuBar
 			| ImGuiWindowFlags_NoBringToFrontOnFocus);
 		ImGui::SetWindowPos(ImVec2(0, 0));
-		ImGui::SetWindowSize(ImVec2(display_w/2, display_h));
+		ImGui::SetWindowSize(ImVec2(display_w / 2, display_h));
 
 		ImGui::Text("Save directory: \"%s\"", ((std::string) sw.save_directory).c_str());
-		ImGui::Text("File name: \"%s\"", sFileName.size()? sFileName.c_str() : sTimeFileName.c_str());
+		ImGui::Text("File name: \"%s\"", sFileName.size() ? sFileName.c_str() : sTimeFileName.c_str());
 		ImGui::Separator();
 
 		ImGui::Text("System controls");
@@ -697,8 +713,8 @@ int main() {
 			| ImGuiWindowFlags_NoTitleBar
 			| ImGuiWindowFlags_MenuBar
 			| ImGuiWindowFlags_NoBringToFrontOnFocus);
-		ImGui::SetWindowPos(ImVec2(display_w/2, 0));
-		ImGui::SetWindowSize(ImVec2(display_w/2, display_h));
+		ImGui::SetWindowPos(ImVec2(display_w / 2, 0));
+		ImGui::SetWindowSize(ImVec2(display_w / 2, display_h));
 
 		drawRightPanel(sw);
 
