@@ -4,6 +4,7 @@
   "com_timeout": 10000,
   "com_baud": 115200,
   "camera": "rtsp://192.168.2.168:554/ch1/main/av_stream",
+  "camera_framerate" :  25,
   "socket_enable": false,
   "socket_port": 50000,
   "sensor_width": 4.8,
