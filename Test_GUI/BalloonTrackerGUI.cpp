@@ -58,6 +58,7 @@ static void glfw_error_callback(int error, const char* description) {
 }
 
 std::string desktopDirectory() {
+#ifdef _WIN64
 	static wchar_t path[MAX_PATH + 1];
 
 	if (SHGetFolderPath(NULL, CSIDL_DESKTOP, NULL, 0, path) != S_OK) {
@@ -69,7 +70,9 @@ std::string desktopDirectory() {
 	if (wcstombs_s<MAX_PATH>(&length, fileName, path, MAX_PATH))
 		return "";
 	return std::string(fileName);
-
+#else
+	throw std::runtime_error("This action is not supported on non-windows platforms.");
+#endif
 }
 
 static std::string getFileDialog(bool save, const wchar_t* filter, const std::string& initialDir) {
@@ -116,6 +119,8 @@ static std::string getFileDialog(bool save, const wchar_t* filter, const std::st
 		return std::string(fileName);
 	}
 	return "";
+#else
+	throw std::runtime_error("This action requires a file dialog; not supported on non-Windows platforms.");
 #endif // _WIN64
 }
 
@@ -142,7 +147,8 @@ static std::string getFolderDialog() {
 	if (wcstombs_s<MAX_PATH>(&length, cfolderName, wcfolderName, MAX_PATH))
 		return "";
 	return std::string(cfolderName);
-
+#else
+	throw std::runtime_error("This action requires a folder dialog; not supported on non-Windows platforms.");
 #endif // _WIN64
 }
 
