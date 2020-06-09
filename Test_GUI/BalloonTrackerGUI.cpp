@@ -29,6 +29,7 @@
 #include <shlobj.h>
 #include <stdio.h>
 #pragma comment(lib, "Comdlg32")
+#pragma warning(disable : 4996) //_CRT_SECURE_NO_WARNINGS
 #endif // _WIN64
 
 
@@ -163,21 +164,21 @@ static void saveData(std::vector<std::string> cols,
 	if (!out.is_open())
 		return;
 
-	int stride = cols.size();
+	size_t stride = cols.size();
 	if (!stride)
 		return;
 
-	int size = data.size() - data.size() % stride;
+	size_t size = data.size() - data.size() % stride;
 
 	out << cols[0];
-	for (int i = 1; i < cols.size(); i++) {
+	for (size_t i = 1; i < cols.size(); i++) {
 		out << "," << cols[i];
 	}
 
-	for (int i = 0; i < size / stride; i++) {
+	for (size_t i = 0; i < size / stride; i++) {
 		out << "," << std::endl;
 		out << data[i*stride];
-		for (int j = 1; j < stride; j++) {
+		for (size_t j = 1; j < stride; j++) {
 			out << "," << data[i*stride + j];
 		}
 	}
@@ -362,8 +363,8 @@ void drawSettings(SettingsWrapper& sw) {
 	if (ImGui::CollapsingHeader("Image processing")) {
 		if (bStartImageProcRequest)
 			ImGui::TextColored({ 1,0,0,1 }, "Some settings can't be changed while some systems are running.");
-		int RGS[3] = { sw.thresh_red, sw.thresh_green, sw.thresh_s };
-		float resizeFac = sw.image_resize_factor;
+		int RGS[3] = { (int) sw.thresh_red, (int) sw.thresh_green, (int) sw.thresh_s };
+		float resizeFac = (float) sw.image_resize_factor;
 
 		ImGui::SliderInt3("RGS threshold", RGS, 0, 255);
 		ImGui::SameLine(); HelpMarker("Normalized red, green, and brightness thresholds.");
@@ -477,7 +478,7 @@ void drawControls(SettingsWrapper& sw) {
 	ImGui::NextColumn();
 	ImGui::SliderFloat("Bearing", &fBearing, 0, 360, "%.1f degrees");
 	ImGui::NextColumn();
-	ImGui::ProgressBar(dCountDownValue / dCountDown, {-1, 0},
+	ImGui::ProgressBar((float) (dCountDownValue / dCountDown), {-1, 0},
 		(std::to_string((int) (dCountDown - dCountDownValue)) + " seconds").c_str());
 	ImGui::Columns(1, nullptr, false);
 
@@ -552,15 +553,13 @@ void drawControls(SettingsWrapper& sw) {
 void drawRightPanel(SettingsWrapper &sw) {
 	static std::vector<std::shared_ptr<char>> lines;
 	static int frameCount;
-	static std::vector<float> panData;
-	static std::vector<float> tiltData;
-
+	static std::vector<float> mPanData;
+	static std::vector<float> mTiltData;
+	static std::vector<float> pPanData;
+	static std::vector<float> pTiltData;
 	static std::vector<float> altitudeData;
 
 	static std::vector<char*> linesPtr;
-
-	static int lastUpdate;
-	static bool updateGraphs = true;
 
 	static int currentLine = 0;
 	if (lines.size() < 1) {
@@ -568,12 +567,25 @@ void drawRightPanel(SettingsWrapper &sw) {
 		linesPtr.emplace_back(lines[0].get());
 		sprintf(lines[0].get(), "%15s %15s %15s %15s", "Frame#", "Pan", "Tilt", "Altitude");
 	}
-	while (lines.size() < 100) {
+	for(size_t i = lines.size() - 1; i < data.size(); i++) {
 		lines.emplace_back(new char[512]);
 		char* last = lines[lines.size() - 1].get();
-		sprintf(last, "%15d %15.2f %15.2f %15.2f", lines.size() - 1, 2.0f, 3.0f, 4.0f);
+		sprintf(last, "%15llu %15.2f %15.2f %15.2f", data[i].index, data[i].mPan, data[i].mTilt, data[i].y);
 		linesPtr.emplace_back(last);
+		mPanData.push_back((float) data[i].mPan);
+		mTiltData.push_back((float) data[i].mTilt);
+		pPanData.push_back((float) data[i].pPan);
+		pTiltData.push_back((float) data[i].pTilt);
+		altitudeData.push_back((float) data[i].y);
 	}
+
+	static bool updateGraphs = true;
+	static int indexA = 0, indexB = 0;
+	int dataSize = altitudeData.size();
+	if (updateGraphs) {
+		indexB = altitudeData.size()-1;
+	}
+
 
 	ImGui::Columns(1);
 
@@ -581,40 +593,29 @@ void drawRightPanel(SettingsWrapper &sw) {
 	float gWidth = ImGui::GetWindowSize().x;
 	ImGui::Text("Collected data:");
 	ImGui::SetNextItemWidth(gWidth*0.985f);
-	ImGui::ListBox("", &currentLine, linesPtr.data(), lines.size(), 7);
+	ImGui::ListBox("", &currentLine, linesPtr.data(), (int) lines.size(), 7);
 
 	ImGui::Separator();
 
-	static int indexA = 0, indexB = 0;
 	ImGui::Text("Motor Pan (degrees):"); ImGui::SameLine(); HelpMarker("Physical rotation of the pan motor.");
-	ImGui::PlotLines("", panData.data() + indexA, indexB - indexA, 0, "", -90, 90, { gWidth , gHeight });
+	ImGui::PlotLines("", mPanData.data() + indexA, indexB - indexA, 0, "", -90, 90, { gWidth , gHeight });
 	ImGui::Text("Motor Tilt (degrees):"); ImGui::SameLine(); HelpMarker("Physical rotation of the tilt motor.");
-	ImGui::PlotLines("", tiltData.data() + indexA, indexB - indexA, 0, "", -90, 90, { gWidth, gHeight });
+	ImGui::PlotLines("", mTiltData.data() + indexA, indexB - indexA, 0, "", -90, 90, { gWidth, gHeight });
 	float maxAltitude = 0;
-	if (frameCount != 0)
+	if (altitudeData.size() != 0)
 		maxAltitude = *std::max_element(altitudeData.begin() + indexA, altitudeData.begin() + indexB);
 
 	ImGui::Text("Balloon Altitude (mm):"); ImGui::SameLine(); HelpMarker("Perceived altitude of the balloon.");
 	ImGui::PlotLines("", altitudeData.data() + indexA, indexB - indexA, 0, "", 0, maxAltitude, { gWidth, gHeight });
 	ImGui::Text("Perceived Pan (degrees):"); ImGui::SameLine();
 	HelpMarker("Perceived bearing of the balloon considering all variables.");
-	ImGui::PlotLines("", altitudeData.data() + indexA, indexB - indexA, 0, "", 0, maxAltitude, { gWidth, gHeight });
+	ImGui::PlotLines("", pPanData.data() + indexA, indexB - indexA, 0, "", -90, 90, { gWidth, gHeight });
 	ImGui::Text("Perceived Tilt (degrees):"); ImGui::SameLine();
 	HelpMarker("Perceived bearing of the balloon considering all variables.");
-	ImGui::PlotLines("", altitudeData.data() + indexA, indexB - indexA, 0, "", 0, maxAltitude, { gWidth, gHeight });
+	ImGui::PlotLines("", pTiltData.data() + indexA, indexB - indexA, 0, "", -90, 90, { gWidth, gHeight });
 	ImGui::Checkbox("Scrolling graphs", &updateGraphs);
 	ImGui::SliderInt("Display range min", &indexA, 0, indexB);
-	ImGui::SliderInt("Display range max", &indexB, indexA, frameCount - 1);
-
-	panData.emplace_back(90 * sinf((frameCount / 1) / 100.0f*3.14159f*2.0f));
-	tiltData.emplace_back(90 * cosf((frameCount / 1) / 100.0f*3.14159f*2.0f));
-	altitudeData.emplace_back(frameCount*frameCount / 10000.0f*(panData[frameCount] / 180.0f + 0.5f));
-	maxAltitude = max(maxAltitude, altitudeData[altitudeData.size() - 1]);
-
-	if (updateGraphs) {
-		lastUpdate = frameCount;
-		indexB = lastUpdate;
-	}
+	ImGui::SliderInt("Display range max", &indexB, indexA, dataSize-1);
 
 	frameCount++;
 }
@@ -625,7 +626,7 @@ void drawRightPanel(SettingsWrapper &sw) {
 
 
 
-int GUI::StartGUI(SettingsWrapper &sw) {
+int GUI::StartGUI(SettingsWrapper &sw, bool* stop) {
 	if (!((std::string) sw.save_directory).size()) {
 		sw.save_directory = desktopDirectory();
 	}
@@ -664,7 +665,7 @@ int GUI::StartGUI(SettingsWrapper &sw) {
 
 
 
-	while (!glfwWindowShouldClose(window)) {
+	while (!glfwWindowShouldClose(window) && !*stop) {
 		glfwPollEvents();
 		glfwGetFramebufferSize(window, &display_w, &display_h);
 		getTimeNowString(sTimeFileName);
@@ -735,7 +736,7 @@ int GUI::StartGUI(SettingsWrapper &sw) {
 			| ImGuiWindowFlags_MenuBar
 			| ImGuiWindowFlags_NoBringToFrontOnFocus);
 		ImGui::SetWindowPos(ImVec2(0, 0));
-		ImGui::SetWindowSize(ImVec2(display_w / 2, display_h));
+		ImGui::SetWindowSize(ImVec2(display_w / 2.0f, (float) display_h));
 
 		ImGui::Text("Save directory: \"%s\"", ((std::string) sw.save_directory).c_str());
 		ImGui::Text("File name: \"%s\"", sFileName.size() ? sFileName.c_str() : sTimeFileName.c_str());
@@ -759,8 +760,8 @@ int GUI::StartGUI(SettingsWrapper &sw) {
 			| ImGuiWindowFlags_NoTitleBar
 			| ImGuiWindowFlags_MenuBar
 			| ImGuiWindowFlags_NoBringToFrontOnFocus);
-		ImGui::SetWindowPos(ImVec2(display_w / 2, 0));
-		ImGui::SetWindowSize(ImVec2(display_w / 2, display_h));
+		ImGui::SetWindowPos(ImVec2((float) display_w / 2, 0));
+		ImGui::SetWindowSize(ImVec2((float) display_w / 2, (float) display_h));
 
 		drawRightPanel(sw);
 
@@ -788,6 +789,15 @@ int GUI::StartGUI(SettingsWrapper &sw) {
 }
 
 int main() {
+	bool stop = false;
 	SettingsWrapper sw("../settings.json");
-	return GUI::StartGUI(sw);
+	for (uint64_t i = 0;i < 400; i++) {
+		double a = (90 * sin((i/ 1) / 100.0*3.14159*2.0));
+		double b = (90 * cos((i/ 1) / 100.0*3.14159*2.0));
+		double c = (i*i/ 10000.0*(a / 180.0 + 0.5));
+		data.push_back(DataPoint{ 0.0, 1.0, 2.0, 
+			a, b, a*b/90.0f, -a*b/90.0f,
+			(uint64_t) i });
+	}
+	return GUI::StartGUI(sw, &stop);
 }

@@ -21,5 +21,5 @@ namespace GUI {
 	extern double dCountDownValue;
 	extern float fBearing;
 
-	int StartGUI(SettingsWrapper& sw);
+	int StartGUI(SettingsWrapper& sw, bool* stop);
 }
