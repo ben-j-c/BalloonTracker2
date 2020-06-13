@@ -15,12 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\include\BalloonTrackerGUI.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="BalloonTrackerGUI.cpp">
+    <ClCompile Include="Test_GUI_Application.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -34,24 +34,24 @@
 #endif // _WIN64
 
 
+
+__declspec(dllexport) std::vector<GUI::DataPoint> data;
+
+__declspec(dllexport) bool bStartSystemRequest = false;
+__declspec(dllexport) bool bStopSystemRequest = false;
+__declspec(dllexport) bool bStartImageProcRequest = false;
+__declspec(dllexport) bool bStopImageProcRequest = false;
+__declspec(dllexport) bool bStartMotorContRequest = false;
+__declspec(dllexport) bool bStopMotorContRequest = false;
+__declspec(dllexport) double dBalloonCirc = 37.5;
+__declspec(dllexport) double dCountDown = 30;
+__declspec(dllexport) double dCountDownValue;
+__declspec(dllexport) float fBearing = 0;
+
+
+
+
 int display_w, display_h;
-
-namespace GUI {
-	std::vector<GUI::DataPoint> data;
-
-	bool bStartSystemRequest = false;
-	bool bStopSystemRequest = false;
-	bool bStartImageProcRequest = false;
-	bool bStopImageProcRequest = false;
-	bool bStartMotorContRequest = false;
-	bool bStopMotorContRequest = false;
-	double dBalloonCirc = 37.5;
-	double dCountDown = 30;
-	double dCountDownValue;
-	float fBearing = 0;
-}
-
-using namespace GUI;
 
 
 
@@ -210,7 +210,7 @@ static void saveData(const std::string& fileName, SettingsWrapper &sw) {
 		out << ",pPan,pTilt";
 	}
 
-	for (int i = 0; i < GUI::data.size(); i++) {
+	for (int i = 0; i < data.size(); i++) {
 		out << "," << std::endl;
 		if (sw.report_frame_number) {
 			out << data[i].index;
@@ -627,7 +627,7 @@ void drawRightPanel(SettingsWrapper &sw) {
 
 
 
-int GUI::StartGUI(SettingsWrapper &sw, bool* stop) {
+__declspec(dllexport) int GUI::StartGUI(SettingsWrapper &sw, bool* stop) {
 	if (!((std::string) sw.save_directory).size()) {
 		sw.save_directory = desktopDirectory();
 	}
@@ -798,7 +798,7 @@ int main() {
 		double a = (90 * sin((i / 1) / 100.0*3.14159*2.0));
 		double b = (90 * cos((i / 1) / 100.0*3.14159*2.0));
 		double c = (i*i / 10000.0*(a / 180.0 + 0.5));
-		data.push_back(DataPoint{ 0.0, 1.0, 2.0,
+		data.push_back(GUI::DataPoint{ 0.0, 1.0, 2.0,
 			a, b, a*b / 90.0f, -a * b / 90.0f,
 			(uint64_t)i });
 		std::this_thread::sleep_for(std::chrono::milliseconds(20));
