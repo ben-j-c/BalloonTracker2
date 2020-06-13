@@ -35,26 +35,26 @@
 
 
 
-__declspec(dllexport) std::vector<GUI::DataPoint> data;
+namespace GUI {
+	__declspec(dllexport) std::vector<GUI::DataPoint> data;
 
-__declspec(dllexport) bool bStartSystemRequest = false;
-__declspec(dllexport) bool bStopSystemRequest = false;
-__declspec(dllexport) bool bStartImageProcRequest = false;
-__declspec(dllexport) bool bStopImageProcRequest = false;
-__declspec(dllexport) bool bStartMotorContRequest = false;
-__declspec(dllexport) bool bStopMotorContRequest = false;
-__declspec(dllexport) double dBalloonCirc = 37.5;
-__declspec(dllexport) double dCountDown = 30;
-__declspec(dllexport) double dCountDownValue;
-__declspec(dllexport) float fBearing = 0;
-
-
+	__declspec(dllexport) bool bStartSystemRequest = false;
+	__declspec(dllexport) bool bStopSystemRequest = false;
+	__declspec(dllexport) bool bStartImageProcRequest = false;
+	__declspec(dllexport) bool bStopImageProcRequest = false;
+	__declspec(dllexport) bool bStartMotorContRequest = false;
+	__declspec(dllexport) bool bStopMotorContRequest = false;
+	__declspec(dllexport) double dBalloonCirc = 37.5;
+	__declspec(dllexport) double dCountDown = 30;
+	__declspec(dllexport) double dCountDownValue;
+	__declspec(dllexport) float fBearing = 0;
+}
 
 
 int display_w, display_h;
 
 
-
+using namespace GUI;
 
 
 
