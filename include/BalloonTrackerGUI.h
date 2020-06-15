@@ -11,7 +11,7 @@ namespace GUI {
 		uint64_t index;
 	};
 
-	__declspec(dllimport) std::vector<GUI::DataPoint> data;
+
 
 	__declspec(dllimport) bool bStartSystemRequest;
 	__declspec(dllimport) bool bStopSystemRequest;
@@ -25,21 +25,7 @@ namespace GUI {
 	__declspec(dllimport) float fBearing;
 
 	__declspec(dllimport) int StartGUI(SettingsWrapper& sw, bool* stop);
+
+	__declspec(dllimport) void addData(const DataPoint& newData);
+	__declspec(dllimport) DataPoint& addData();
 };
-
-
-
-/*
-extern __declspec(dllexport) std::vector<GUI::DataPoint> data;
-
-extern __declspec(dllexport) bool bStartSystemRequest;
-extern __declspec(dllexport) bool bStopSystemRequest;
-extern __declspec(dllexport) bool bStartImageProcRequest;
-extern __declspec(dllexport) bool bStopImageProcRequest;
-extern __declspec(dllexport) bool bStartMotorContRequest;
-extern __declspec(dllexport) bool bStopMotorContRequest;
-extern __declspec(dllexport) double dBalloonCirc;
-extern __declspec(dllexport) double dCountDown;
-extern __declspec(dllexport) double dCountDownValue;
-extern __declspec(dllexport) float fBearing;
-*/

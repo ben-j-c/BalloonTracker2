@@ -1,4 +1,3 @@
-#include "BalloonTrackerGUI.h"
 #include "SettingsWrapper.h"
 
 #include <iostream>
@@ -14,6 +13,7 @@
 #include <thread>
 #include <chrono>
 #include <future>
+#include <mutex>
 
 #define GLEW_STATIC
 #include <GL/glew.h>
@@ -31,12 +31,21 @@
 #include <stdio.h>
 #pragma comment(lib, "Comdlg32")
 #pragma warning(disable : 4996) //_CRT_SECURE_NO_WARNINGS
+#else
+#error("Program only compatible with x64 Windows")
 #endif // _WIN64
 
 
 
 namespace GUI {
-	__declspec(dllexport) std::vector<GUI::DataPoint> data;
+	struct DataPoint {
+		double x, y, z;
+		double mPan, mTilt, pPan, pTilt;
+		uint64_t index;
+	};
+
+	std::vector<GUI::DataPoint> data;
+	std::mutex dataLock;
 
 	__declspec(dllexport) bool bStartSystemRequest = false;
 	__declspec(dllexport) bool bStopSystemRequest = false;
@@ -211,6 +220,7 @@ static void saveData(const std::string& fileName, SettingsWrapper &sw) {
 	}
 
 	for (int i = 0; i < data.size(); i++) {
+		std::lock_guard<std::mutex> lck(dataLock);
 		out << "," << std::endl;
 		if (sw.report_frame_number) {
 			out << data[i].index;
@@ -569,6 +579,7 @@ void drawRightPanel(SettingsWrapper &sw) {
 		sprintf(lines[0].get(), "%15s %15s %15s %15s", "Frame#", "Pan", "Tilt", "Altitude");
 	}
 	for(size_t i = lines.size() - 1; i < data.size(); i++) {
+		std::lock_guard<std::mutex> lck(dataLock);
 		lines.emplace_back(new char[512]);
 		char* last = lines[lines.size() - 1].get();
 		sprintf(last, "%15llu %15.2f %15.2f %15.2f", data[i].index, data[i].mPan, data[i].mTilt, data[i].y);
@@ -627,166 +638,184 @@ void drawRightPanel(SettingsWrapper &sw) {
 
 
 
-__declspec(dllexport) int GUI::StartGUI(SettingsWrapper &sw, bool* stop) {
-	if (!((std::string) sw.save_directory).size()) {
-		sw.save_directory = desktopDirectory();
+
+
+
+namespace GUI {
+	__declspec(dllexport) DataPoint& addData() {
+		std::lock_guard<std::mutex> lck(dataLock);
+		data.emplace_back();
+		return *(data.end() - 1);
 	}
 
-	static std::string sFileName, sTimeFileName;
-
-
-	glfwSetErrorCallback(glfw_error_callback);
-	if (!glfwInit())
-		return 1;
-
-	const char* glsl_version = "#version 130";
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-	GLFWwindow* window = glfwCreateWindow(640 * 2, 720,
-		"BalloonTracker", NULL, NULL);
-	if (window == NULL) {
-		fprintf(stderr, "Failed to open window\n");
-		return 1;
-	}
-	glfwMakeContextCurrent(window);
-	glfwSwapInterval(1);
-
-	if (glewInit()) {
-		fprintf(stderr, "Failed to initialize GLEW\n");
-		return 1;
+	__declspec(dllexport) void addData(const GUI::DataPoint& newData) {
+		std::lock_guard<std::mutex> lck(dataLock);
+		data.push_back(newData);
 	}
 
 
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO();
-	ImGui::StyleColorsDark();
-	ImGui_ImplGlfw_InitForOpenGL(window, true);
-	ImGui_ImplOpenGL3_Init(glsl_version);
+
+	__declspec(dllexport) int StartGUI(SettingsWrapper &sw, bool* stop) {
+		if (!((std::string) sw.save_directory).size()) {
+			sw.save_directory = desktopDirectory();
+		}
+
+		static std::string sFileName, sTimeFileName;
+
+
+		glfwSetErrorCallback(glfw_error_callback);
+		if (!glfwInit())
+			return 1;
+
+		const char* glsl_version = "#version 130";
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+		GLFWwindow* window = glfwCreateWindow(640 * 2, 720,
+			"BalloonTracker", NULL, NULL);
+		if (window == NULL) {
+			fprintf(stderr, "Failed to open window\n");
+			return 1;
+		}
+		glfwMakeContextCurrent(window);
+		glfwSwapInterval(1);
+
+		if (glewInit()) {
+			fprintf(stderr, "Failed to initialize GLEW\n");
+			return 1;
+		}
+
+
+		IMGUI_CHECKVERSION();
+		ImGui::CreateContext();
+		ImGuiIO& io = ImGui::GetIO();
+		ImGui::StyleColorsDark();
+		ImGui_ImplGlfw_InitForOpenGL(window, true);
+		ImGui_ImplOpenGL3_Init(glsl_version);
 
 
 
-	while (!glfwWindowShouldClose(window) && !*stop) {
-		glfwPollEvents();
-		glfwGetFramebufferSize(window, &display_w, &display_h);
-		getTimeNowString(sTimeFileName);
+		while (!glfwWindowShouldClose(window) && !*stop) {
+			glfwPollEvents();
+			glfwGetFramebufferSize(window, &display_w, &display_h);
+			getTimeNowString(sTimeFileName);
 
-		ImGui_ImplOpenGL3_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
+			ImGui_ImplOpenGL3_NewFrame();
+			ImGui_ImplGlfw_NewFrame();
+			ImGui::NewFrame();
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
 
-		if (ImGui::BeginMainMenuBar()) {
-			if (ImGui::BeginMenu("File")) {
-				if (ImGui::MenuItem("New data")) {
-					std::string sFileResult = getFileDialog(true, L"Table\0*.CSV\0All\0*.*\0", sw.save_directory);
-					if (sFileResult.size())
-						sFileName = sFileResult;
-				}
-				if (ImGui::BeginMenu("Save data")) {
-					if (ImGui::MenuItem("Save As")) {
+			if (ImGui::BeginMainMenuBar()) {
+				if (ImGui::BeginMenu("File")) {
+					if (ImGui::MenuItem("New data")) {
 						std::string sFileResult = getFileDialog(true, L"Table\0*.CSV\0All\0*.*\0", sw.save_directory);
-						if (sFileResult.size()) {
+						if (sFileResult.size())
 							sFileName = sFileResult;
+					}
+					if (ImGui::BeginMenu("Save data")) {
+						if (ImGui::MenuItem("Save As")) {
+							std::string sFileResult = getFileDialog(true, L"Table\0*.CSV\0All\0*.*\0", sw.save_directory);
+							if (sFileResult.size()) {
+								sFileName = sFileResult;
+								saveData(sFileName, sw);
+							}
+						}
+						if (ImGui::MenuItem("Save")) {
+							if (!sFileName.size()) {
+								getTimeNowString(sTimeFileName);
+								sFileName = (std::string)sw.save_directory + "\\" + sTimeFileName;
+							}
 							saveData(sFileName, sw);
 						}
-					}
-					if (ImGui::MenuItem("Save")) {
-						if (!sFileName.size()) {
-							getTimeNowString(sTimeFileName);
-							sFileName = (std::string)sw.save_directory + "\\" + sTimeFileName;
-						}
-						saveData(sFileName, sw);
-					}
-					else if (ImGui::IsItemHovered()) {
+						else if (ImGui::IsItemHovered()) {
 
-						ImGui::BeginTooltip();
-						ImGui::Text(sTimeFileName.c_str());
-						ImGui::EndTooltip();
+							ImGui::BeginTooltip();
+							ImGui::Text(sTimeFileName.c_str());
+							ImGui::EndTooltip();
+						}
+						ImGui::EndMenu();
+					}
+					if (ImGui::MenuItem("Load data")) {
+						std::string sFileResult = getFileDialog(false, L"Table\0*.CSV\0All\0*.*\0", sw.save_directory);
+						if (sFileResult.size())
+							sFileName = sFileResult;
+					}
+					ImGui::Separator();
+					if (ImGui::MenuItem("Save settings")) {
+						std::string saveFile = getFileDialog(true, L"Settings\0*.JSON\0All\0*.*\0", sw.save_directory);
+					}
+					if (ImGui::MenuItem("Load settings")) {
+						std::string loadFile = getFileDialog(false, L"Settings\0*.JSON\0All\0*.*\0", sw.save_directory);
+					}
+					if (ImGui::MenuItem("Select save directory")) {
+						std::string sDir = getFolderDialog();
+						if (sDir.size()) {
+							sw.save_directory = sDir;
+						}
 					}
 					ImGui::EndMenu();
 				}
-				if (ImGui::MenuItem("Load data")) {
-					std::string sFileResult = getFileDialog(false, L"Table\0*.CSV\0All\0*.*\0", sw.save_directory);
-					if (sFileResult.size())
-						sFileName = sFileResult;
-				}
-				ImGui::Separator();
-				if (ImGui::MenuItem("Save settings")) {
-					std::string saveFile = getFileDialog(true, L"Settings\0*.JSON\0All\0*.*\0", sw.save_directory);
-				}
-				if (ImGui::MenuItem("Load settings")) {
-					std::string loadFile = getFileDialog(false, L"Settings\0*.JSON\0All\0*.*\0", sw.save_directory);
-				}
-				if (ImGui::MenuItem("Select save directory")) {
-					std::string sDir = getFolderDialog();
-					if (sDir.size()) {
-						sw.save_directory = sDir;
-					}
-				}
-				ImGui::EndMenu();
+				ImGui::EndMainMenuBar();
 			}
-			ImGui::EndMainMenuBar();
+
+			ImGui::Begin("LeftWindow", nullptr, 0
+				| ImGuiWindowFlags_NoCollapse
+				| ImGuiWindowFlags_NoMove
+				| ImGuiWindowFlags_NoResize
+				| ImGuiWindowFlags_NoTitleBar
+				| ImGuiWindowFlags_MenuBar
+				| ImGuiWindowFlags_NoBringToFrontOnFocus);
+			ImGui::SetWindowPos(ImVec2(0, 0));
+			ImGui::SetWindowSize(ImVec2(display_w / 2.0f, (float)display_h));
+
+			ImGui::Text("Save directory: \"%s\"", ((std::string) sw.save_directory).c_str());
+			ImGui::Text("File name: \"%s\"", sFileName.size() ? sFileName.c_str() : sTimeFileName.c_str());
+			ImGui::Separator();
+
+			ImGui::Text("System controls");
+			drawControls(sw);
+
+			ImGui::Separator();
+
+			ImGui::Text("Settings");
+			drawSettings(sw);
+
+			ImGui::End();
+
+
+			ImGui::Begin("RightWindow", nullptr, 0
+				| ImGuiWindowFlags_NoCollapse
+				| ImGuiWindowFlags_NoMove
+				| ImGuiWindowFlags_NoResize
+				| ImGuiWindowFlags_NoTitleBar
+				| ImGuiWindowFlags_MenuBar
+				| ImGuiWindowFlags_NoBringToFrontOnFocus);
+			ImGui::SetWindowPos(ImVec2((float)display_w / 2, 0));
+			ImGui::SetWindowSize(ImVec2((float)display_w / 2, (float)display_h));
+
+			drawRightPanel(sw);
+
+			ImGui::End();
+
+			ImGui::PopStyleVar(1);
+
+
+			ImGui::Render();
+			glViewport(0, 0, display_w, display_h);
+			glClearColor(0.25f, 0.25f, 0.25f, 0);
+			glClear(GL_COLOR_BUFFER_BIT);
+			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+			glfwSwapBuffers(window);
 		}
 
-		ImGui::Begin("LeftWindow", nullptr, 0
-			| ImGuiWindowFlags_NoCollapse
-			| ImGuiWindowFlags_NoMove
-			| ImGuiWindowFlags_NoResize
-			| ImGuiWindowFlags_NoTitleBar
-			| ImGuiWindowFlags_MenuBar
-			| ImGuiWindowFlags_NoBringToFrontOnFocus);
-		ImGui::SetWindowPos(ImVec2(0, 0));
-		ImGui::SetWindowSize(ImVec2(display_w / 2.0f, (float) display_h));
+		ImGui_ImplOpenGL3_Shutdown();
+		ImGui_ImplGlfw_Shutdown();
+		ImGui::DestroyContext();
 
-		ImGui::Text("Save directory: \"%s\"", ((std::string) sw.save_directory).c_str());
-		ImGui::Text("File name: \"%s\"", sFileName.size() ? sFileName.c_str() : sTimeFileName.c_str());
-		ImGui::Separator();
+		glfwDestroyWindow(window);
+		glfwTerminate();
 
-		ImGui::Text("System controls");
-		drawControls(sw);
-
-		ImGui::Separator();
-
-		ImGui::Text("Settings");
-		drawSettings(sw);
-
-		ImGui::End();
-
-
-		ImGui::Begin("RightWindow", nullptr, 0
-			| ImGuiWindowFlags_NoCollapse
-			| ImGuiWindowFlags_NoMove
-			| ImGuiWindowFlags_NoResize
-			| ImGuiWindowFlags_NoTitleBar
-			| ImGuiWindowFlags_MenuBar
-			| ImGuiWindowFlags_NoBringToFrontOnFocus);
-		ImGui::SetWindowPos(ImVec2((float) display_w / 2, 0));
-		ImGui::SetWindowSize(ImVec2((float) display_w / 2, (float) display_h));
-
-		drawRightPanel(sw);
-
-		ImGui::End();
-
-		ImGui::PopStyleVar(1);
-
-
-		ImGui::Render();
-		glViewport(0, 0, display_w, display_h);
-		glClearColor(0.25f, 0.25f, 0.25f, 0);
-		glClear(GL_COLOR_BUFFER_BIT);
-		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-		glfwSwapBuffers(window);
+		return 0;
 	}
-
-	ImGui_ImplOpenGL3_Shutdown();
-	ImGui_ImplGlfw_Shutdown();
-	ImGui::DestroyContext();
-
-	glfwDestroyWindow(window);
-	glfwTerminate();
-
-	return 0;
 }
 
 int main() {
@@ -795,6 +824,7 @@ int main() {
 	std::future<int> result = std::async(GUI::StartGUI, std::ref(sw), &stop);
 
 	for (uint64_t i = 0; i < 400; i++) {
+		std::lock_guard<std::mutex> lck(GUI::dataLock);
 		double a = (90 * sin((i / 1) / 100.0*3.14159*2.0));
 		double b = (90 * cos((i / 1) / 100.0*3.14159*2.0));
 		double c = (i*i / 10000.0*(a / 180.0 + 0.5));
