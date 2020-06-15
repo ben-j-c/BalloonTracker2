@@ -64,17 +64,17 @@ void processFrames() {
 	}
 }
 
-#if !defined(HAVE_OPENCV_CUDACODEC)
+#if defined(_DEBUG)//!defined(HAVE_OPENCV_CUDACODEC)
 void processVideo(std::string videoFileName) {
 	//create the capture object
-	VideoCapture capture(videoFileName, cv::CAP_FFMPEG);
-	capture.set(cv::CAP_PROP_FOURCC, VideoWriter::fourcc('H', '2', '6', '4'));
+	VideoCapture capture;
+	capture.set(cv::CAP_PROP_BUFFERSIZE, 0);
+	capture.open(videoFileName, cv::CAP_FFMPEG);
 	std::this_thread::sleep_for(std::chrono::milliseconds(500));
 	Mat frame;
 	std::chrono::high_resolution_clock timer;
 	using milisec = std::chrono::duration<float, std::milli>;
 	while (keyboard != 'q' && keyboard != 27) {
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		auto start = timer.now();
 		if (!capture.isOpened()) {
 			//error in opening the video input
