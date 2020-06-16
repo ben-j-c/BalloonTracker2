@@ -19,6 +19,7 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <mutex>
+#include <future>
 
 // OpenCV
 #include "opencv2/imgproc.hpp"
@@ -370,6 +371,11 @@ void videoRunningHandler() {
 			delay(50);
 		}
 
+		if (sw.show_frame_rgb)
+			namedWindow("Image");
+		if (sw.show_frame_mask)
+			namedWindow("blob");
+
 		frameBuff = FrameBuffer(25);
 		std::thread videoReadThread(processVideo, sw.camera, [] {
 			GUI::bStartImageProcRequest = false; //System started
@@ -380,6 +386,8 @@ void videoRunningHandler() {
 		GUI::bImageProcRunning = false;
 		GUI::bStartImageProcRequest = false; //Pressing start does nothing when running
 		GUI::bStopImageProcRequest = false; //Request to stop has been processed
+
+		destroyAllWindows();
 	}
 }
 
@@ -424,12 +432,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	//create GUI windows
-	GUI::StartGUI(sw, &bStop);
-	if (sw.show_frame_rgb)
-		namedWindow("Image");
-	if (sw.show_frame_mask)
-		namedWindow("blob");
-
+	std::future<int> result = std::async(GUI::StartGUI, std::ref(sw), &bStop);
 	//Start CV and motor subsystem handlers
 	std::thread motorsUpdateThread(motorRunningHandler);
 	std::thread videoUpdateThread(videoRunningHandler);
