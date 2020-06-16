@@ -293,10 +293,10 @@ ImVec4 statusColour(bool req, bool run, bool reqStop) {
 }
 
 string statusText(bool req, bool run, bool reqStop) {
-	if (run) return "Running";
-	if (req) return "Starting";
-	if (reqStop) return "Stopping";
-	return "Stopped";
+	if (run) return string("Running");
+	if (req) return string("Starting");
+	if (reqStop) return string("Stopping");
+	return string("Stopped");
 }
 
 
@@ -541,7 +541,7 @@ void drawControls(SettingsWrapper& sw) {
 	}
 	ImGui::NextColumn();
 	ImGui::TextColored(statusColour(bStartSystemRequest, bSystemRunning, bStopSystemRequest) , "%7s",
-		statusText(bStartSystemRequest, bSystemRunning, bStopSystemRequest));
+		statusText(bStartSystemRequest, bSystemRunning, bStopSystemRequest).data());
 	ImGui::NextColumn();
 
 	ImGui::Text("Image Processing");
@@ -558,7 +558,7 @@ void drawControls(SettingsWrapper& sw) {
 	}
 	ImGui::NextColumn();
 	ImGui::TextColored(statusColour(bStartImageProcRequest, bImageProcRunning, bStopImageProcRequest), "%7s",
-		statusText(bStartImageProcRequest, bImageProcRunning, bStopImageProcRequest));
+		statusText(bStartImageProcRequest, bImageProcRunning, bStopImageProcRequest).data());
 	ImGui::NextColumn();
 
 
@@ -577,7 +577,7 @@ void drawControls(SettingsWrapper& sw) {
 	}
 	ImGui::NextColumn();
 	ImGui::TextColored(statusColour(bStartMotorContRequest, bMotorContRunning, bStopMotorContRequest), "%7s",
-		statusText(bStartMotorContRequest, bMotorContRunning, bStopMotorContRequest));
+		statusText(bStartMotorContRequest, bMotorContRunning, bStopMotorContRequest).data());
 	ImGui::NextColumn();
 
 	ImGui::Columns(1, nullptr, false);
