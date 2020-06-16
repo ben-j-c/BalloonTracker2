@@ -51,9 +51,13 @@ SettingsWrapper sw("../settings.json");
 #else
 SettingsWrapper sw("./settings.json");
 #endif // _DEBUG
+
+
 bool bSendCoordinates = false;
-bool bCountDownDone = false;
+bool bCountDownStarted = false;
 double dBearing = 0;
+std::chrono::time_point<std::chrono::system_clock> timeStart;
+
 
 namespace Motor {
 	bool inMotion, newDesire;
@@ -124,11 +128,8 @@ void rgChroma(cuda::GpuMat image, std::vector<cuda::GpuMat>& chroma) {
 static bool last;
 /* Given the balloon size and position calculate where the motors should be.
 Stand in for when data should be sent to the GUI.
-
-Returns true when time to shutdown.
 */
-bool sendData(double pxX, double pxY, double area) {
-	static int iFrameCount = 0;
+void sendData(double pxX, double pxY, double area, int iFrameCount) {
 	Motor::mutex_setPos.lock();
 	Motor::history.push(Motor::setPos);
 	Motor::motionHistory.push(Motor::inMotion);
@@ -174,9 +175,6 @@ bool sendData(double pxX, double pxY, double area) {
 		Motor::mutex_desiredPos.unlock();
 	}
 	last = inMotion;
-
-	iFrameCount++;
-	return true;
 }
 
 /* Every 200 ms update the position of the motors.
@@ -184,7 +182,7 @@ Sets the motor position to the disired position, waits 200 ms, and then updates 
 */
 void updatePTC() {
 	//Wait for timer
-	while (bCountDownDone && !bStop && !GUI::bStopMotorContRequest) {
+	while (GUI::bSystemRunning && !bStop && !GUI::bStopMotorContRequest) {
 		this_thread::yield();
 		delay(50);
 	}
@@ -221,16 +219,16 @@ void updatePTC() {
 and update the desired motor positions.
 */
 void processFrames() {
+	int iFrameCount = 0;
 	cuda::GpuMat gpuFrame, resized, blob;
 	std::vector<cuda::GpuMat> chroma(4);
 	Mat displayFrame;
 	keyboard = 0;
 
-	auto startTime = timeNow();
 	while (keyboard != 'q' && keyboard != 27 && !bStop && !GUI::bStopImageProcRequest) {
-		Mat frame;
 		/*It is possible for the frame buffer to be empty when the video
 		read thread exits (due to not being able to open the stream)*/
+		Mat frame;
 		try { frame = frameBuff.getReadFrame(); }
 		catch (std::runtime_error r) {
 			if (frameBuff.killSignal)
@@ -277,17 +275,18 @@ void processFrames() {
 			double pxY = mean[1] / sw.image_resize_factor;
 			double area = loc.size() / (sw.image_resize_factor * sw.image_resize_factor);
 
-			if (bCountDownDone) {
-				sendData(pxX, pxY, area);
+			if (GUI::bSystemRunning) {
+				sendData(pxX, pxY, area, iFrameCount);
+				iFrameCount++;
 			}
-			else {
-				std::chrono::duration<double> deltaT = (timeNow() - startTime);
+			else if(bCountDownStarted) {
+				std::chrono::duration<double> deltaT = (timeNow() - timeStart);
 				cv::putText(displayFrame, to_string(GUI::dCountDown - deltaT.count()),
 					Point(5, 50), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(255, 0, 255, 0), 2);
 			}
 		}
 		else {
-			if (bCountDownDone) {
+			if (GUI::bSystemRunning) {
 				cout << "No pixels found" << endl;
 				keyboard = 'q';
 				break;
@@ -320,11 +319,9 @@ void processVideo(string videoFileName, std::function<void(void)> onStart) {
 	onStart();
 	Mat frame;
 	while (keyboard != 'q' && keyboard != 27 && !bStop && !GUI::bStopImageProcRequest) {
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		if (!capture.isOpened()) {
 			//error in opening the video input
 			cerr << "Unable to open video file: " << videoFileName << endl;
-			frameBuff.kill();
 			break;
 		}
 
@@ -335,6 +332,7 @@ void processVideo(string videoFileName, std::function<void(void)> onStart) {
 		}
 		frameBuff.insertFrame(frame.clone());
 	}
+	frameBuff.kill();
 	capture.release();
 }
 
@@ -347,13 +345,16 @@ void motorRunningHandler() {
 	while (!bStop) {
 		//Wait for start button.
 		while (!GUI::bStartMotorContRequest && !bStop) {
+			GUI::bStopMotorContRequest = false;
 			this_thread::yield();
 			delay(50);
 		}
+		if (bStop)
+			return;
 
 		PTC::useSettings(sw, [] {
-			GUI::bStartMotorContRequest = false; //Request to start has been processed
 			GUI::bMotorContRunning = true;
+			GUI::bStartMotorContRequest = false; //Request to start has been processed
 			});
 		updatePTC(); //Jump to processing
 		PTC::shutdown();
@@ -367,9 +368,12 @@ void videoRunningHandler() {
 	while (!bStop) {
 		//Wait for start button.
 		while (!GUI::bStartImageProcRequest && !bStop) {
+			GUI::bStopImageProcRequest = false;
 			this_thread::yield();
 			delay(50);
 		}
+		if (bStop)
+			return;
 
 		if (sw.show_frame_rgb)
 			namedWindow("Image");
@@ -378,8 +382,8 @@ void videoRunningHandler() {
 
 		frameBuff = FrameBuffer(25);
 		std::thread videoReadThread(processVideo, sw.camera, [] {
-			GUI::bStartImageProcRequest = false; //System started
 			GUI::bImageProcRunning = true;
+			GUI::bStartImageProcRequest = false; //System started
 			});
 		processFrames();
 		videoReadThread.join();
@@ -393,28 +397,36 @@ void videoRunningHandler() {
 
 void countDownHandler() {
 	while (!bStop) {
-		while (!GUI::bStartSystemRequest
-			&& (!GUI::bImageProcRunning || !GUI::bMotorContRunning)
-			&& !bStop) {
+		while (!bStop && !GUI::bStartSystemRequest) {
+			if(!GUI::bImageProcRunning && !GUI::bMotorContRunning && !GUI::)
+				GUI::bStopSystemRequest = false;
 			this_thread::yield();
 			delay(50);
 		}
-
+		if (bStop)
+			return;
 		GUI::bStartSystemRequest = false; //Request to start has been processed
 
+
 		auto timeStart = timeNow();
+		bCountDownStarted = true;
 		while (!GUI::bStopSystemRequest && !bStop) {
-			bCountDownDone = (timeNow() - timeStart) > std::chrono::duration<double, std::milli>(GUI::dCountDown*1000.0);
-			GUI::dCountDownValue = (double)(timeNow() - timeStart).count() / 1E9;
+			auto dt = timeNow() - timeStart;
+			if (dt > std::chrono::duration<double, std::milli>(GUI::dCountDown*1000.0))
+				GUI::bSystemRunning = true;
+			GUI::dCountDownValue = (double) dt.count() / 1E9;
 		}
-		bCountDownDone = true;
-		GUI::bSystemRunning = true;
-		while (!GUI::bStopSystemRequest && !bStop) {
+		bCountDownStarted = false;
+
+		while ( //Wait for systems to shutdown.
+			!bStop && 
+				(!GUI::bStopSystemRequest
+				|| GUI::bImageProcRunning
+				|| GUI::bMotorContRunning)) {
 			this_thread::yield();
 			delay(50);
 		}
 		GUI::bSystemRunning = false;
-		bCountDownDone = false;
 		GUI::bStartSystemRequest = false; //Pressing start does nothing when running
 		GUI::bStopSystemRequest = false; //Request to stop has been processed
 	}
@@ -439,8 +451,12 @@ int main(int argc, char* argv[]) {
 	std::thread countDownThread(countDownHandler);
 
 	//On exit wait for reading thread
+
+	result.get();
+	bStop = true;
 	videoUpdateThread.join();
 	motorsUpdateThread.join();
+	countDownThread.join();
 
 	//destroy GUI windows
 	destroyAllWindows();
