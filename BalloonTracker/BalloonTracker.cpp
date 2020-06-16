@@ -6,7 +6,7 @@
 #include "SettingsWrapper.h"
 #include "PanTiltControl.h"
 #include <CameraMath.h>
-#include <Network.h>
+#include <BalloonTrackerGUI.h>
 #include <rapidjson/document.h>
 
 // C/C++
@@ -34,13 +34,6 @@
 #include <opencv2/cudaimgproc.hpp>
 #include <opencv2/cudawarping.hpp>
 
-//Avoid typos
-#define CIRC "circumference"
-#define DELAY "delay"
-#define BEARING "bearing"
-#define READY "ready"
-#define MISSING "missing members"
-#define MODE_SELECT "absCoord"
 
 using namespace cv;
 using namespace std;
@@ -50,15 +43,16 @@ struct MotorPos {
 };
 
 // Global variables
+bool bStop = false;
 FrameBuffer frameBuff(25);
+#ifdef _DEBUG
 SettingsWrapper sw("../settings.json");
-int frameCount = 0;
-bool sendCoordinates = false;
-chrono::seconds initialDelay;
-double bearing = 0;
-
-CameraMath::pos lastPos;
-vector<double> outboundData;
+#else
+SettingsWrapper sw("./settings.json");
+#endif // _DEBUG
+bool bSendCoordinates = false;
+bool bCountDownDone = false;
+double dBearing = 0;
 
 namespace Motor {
 	bool inMotion, newDesire;
@@ -133,6 +127,7 @@ Stand in for when data should be sent to the GUI.
 Returns true when time to shutdown.
 */
 bool sendData(double pxX, double pxY, double area) {
+	static int iFrameCount = 0;
 	Motor::mutex_setPos.lock();
 	Motor::history.push(Motor::setPos);
 	Motor::motionHistory.push(Motor::inMotion);
@@ -146,56 +141,29 @@ bool sendData(double pxX, double pxY, double area) {
 	double pan = CameraMath::calcPan(pos);
 	double tilt = CameraMath::calcTilt(pos);
 
-	if (inMotion != last && (bool) sw.debug) {
+	if (inMotion != last && (bool)sw.debug) {
 		cout << "Balloon pos:" << pan << " " << tilt << endl;
 		cout << "Motor pos  :" << mp.pan << " " << mp.tilt << endl;
 	}
 
-	if (frameCount != 0) {
-		//compute desired params
-		CameraMath::pos dv;
-		dv.x = pos.x - lastPos.x;
-		dv.y = pos.y - lastPos.y;
-		dv.z = pos.z - lastPos.z;
-		double time = frameCount / 25.0;
-		double altitude = pos.y;
-		double direction = atan2(-dv.z, dv.x)*180.0*M_1_PI + bearing;
-		double speed = sqrt(dv.x*dv.x + dv.y*dv.y + dv.z*dv.z);
 
-		//Every iteration store a column of data
-		//Matlab uses column major for storing arrays
-		if (sw.socket_enable) {
-			if (sendCoordinates) {
-				outboundData.push_back(time);
-				outboundData.push_back(pos.x);
-				outboundData.push_back(pos.y);
-				outboundData.push_back(pos.z);
-			}
-			else {
-				outboundData.push_back(time);
-				outboundData.push_back(altitude);
-				outboundData.push_back(direction);
-				outboundData.push_back(speed);
-			}
+	GUI::DataPoint& p = GUI::addData();
+	p.index = iFrameCount;
+	p.mPan = mp.pan + GUI::fBearing;
+	p.mTilt = mp.tilt;
+	p.pPan = pan + GUI::fBearing;
+	p.pTilt = tilt;
+	p.x = pos.x;
+	p.y = pos.y;
+	p.z = pos.z;
 
-			//Send the number of columns followed by the columns
-			if (frameCount % 50 == 0) {
-				Network::sendData((int)(outboundData.size() / 4));
-				Network::sendData(outboundData);
-				outboundData.clear();
-			}
-		}
-		else {
-			if (sw.print_coordinates) {
-				printf("(x,y,z): %f %f %f\n", pos.x, pos.y, pos.z);
-			}
-
-			if (sw.print_rotation) {
-				printf("(pan,tilt): %f %f\n", pan, tilt);
-			}
-		}
+	if (sw.print_coordinates) {
+		printf("(x,y,z): %f %f %f\n", pos.x, pos.y, pos.z);
 	}
-	lastPos = pos;
+
+	if (sw.print_rotation) {
+		printf("(pan,tilt): %f %f\n", pan, tilt);
+	}
 
 	//If the balloon has moved outside a 5 degree box, move to compensate
 	if ((abs(mp.pan - pan) > 5 || abs(mp.tilt - tilt) > 5) && !inMotion) {
@@ -206,23 +174,22 @@ bool sendData(double pxX, double pxY, double area) {
 	}
 	last = inMotion;
 
-	if (Network::getBytesReady()) {
-		return true;
-	}
-	return false;
+	iFrameCount++;
+	return true;
 }
 
 /* Every 200 ms update the position of the motors.
 Sets the motor position to the disired position, waits 200 ms, and then updates the set position
 */
 void updatePTC() {
-	auto startTime = timeNow();
-	MotorPos mp = Motor::setPos;
-	while ((timeNow() - startTime) < initialDelay) {
+	//Wait for timer
+	while (bCountDownDone && !bStop && !GUI::bStopMotorContRequest) {
 		this_thread::yield();
 		delay(50);
 	}
-	while (keyboard != 'q' && keyboard != 27) {
+
+	MotorPos mp = Motor::setPos;
+	while (keyboard != 'q' && keyboard != 27 && !bStop && !GUI::bStopMotorContRequest) {
 		Motor::mutex_desiredPos.lock();
 		mp = Motor::desiredPos;
 		bool nd = Motor::newDesire;
@@ -232,7 +199,7 @@ void updatePTC() {
 			PTC::addRotation(-mp.pan - PTC::currentPan(),
 				mp.tilt - PTC::currentTilt());
 			Motor::inMotion = true;
-			if(sw.debug)
+			if (sw.debug)
 				cout << "Moving to:" << mp.pan << " " << mp.tilt << endl;
 
 		}
@@ -243,7 +210,7 @@ void updatePTC() {
 		if (Motor::inMotion)
 			Motor::newDesire = false;
 		Motor::inMotion = false;
-		Motor::setPos = {-PTC::currentPan(), PTC::currentTilt()};
+		Motor::setPos = { -PTC::currentPan(), PTC::currentTilt() };
 		Motor::mutex_desiredPos.unlock();
 		Motor::mutex_setPos.unlock();
 	}
@@ -259,17 +226,28 @@ void processFrames() {
 	keyboard = 0;
 
 	auto startTime = timeNow();
-	while (keyboard != 'q' && keyboard != 27) {
-		Mat frame = frameBuff.getReadFrame();
+	while (keyboard != 'q' && keyboard != 27 && !bStop && !GUI::bStopImageProcRequest) {
+		Mat frame;
+		/*It is possible for the frame buffer to be empty when the video
+		read thread exits (due to not being able to open the stream)*/
+		try { frame = frameBuff.getReadFrame(); }
+		catch (std::runtime_error r) {
+			if (frameBuff.killSignal)
+				continue;
+			else
+				throw r;
+		}
 		cuda::GpuMat gpuFrame(frame);
 		frameBuff.readDone();
 
+
+
 		cuda::resize(gpuFrame, resized,
 			cv::Size(
-				(int)(gpuFrame.cols*sw.image_resize_factor),
+			(int)(gpuFrame.cols*sw.image_resize_factor),
 				(int)(gpuFrame.rows*sw.image_resize_factor)),
-				0.0, 0.0, INTER_NEAREST);
-		rgChroma(resized, chroma);
+			0.0, 0.0, INTER_NEAREST);
+		rgChroma(resized, chroma); //{R, G, B, S}
 		cuda::threshold(chroma[0], chroma[0], sw.thresh_red, 255, THRESH_BINARY);
 		cuda::threshold(chroma[1], chroma[1], sw.thresh_green, 255, THRESH_BINARY_INV);
 		cuda::threshold(chroma[3], chroma[3], sw.thresh_s, 255, THRESH_BINARY);
@@ -285,74 +263,67 @@ void processFrames() {
 		if (loc.size() > 50) {
 			cv::Scalar mean = cv::mean(loc);
 			double pxRadius = sqrt(loc.size() / M_PI);
-			cv::drawMarker(displayFrame, cv::Point2i((int) (mean[0] + pxRadius), (int) mean[1]),
+			cv::drawMarker(displayFrame, cv::Point2i((int)(mean[0] + pxRadius), (int)mean[1]),
 				cv::Scalar(255, 0, 0, 0), 0, 10, 1);
-			cv::drawMarker(displayFrame, cv::Point2i((int) (mean[0] - pxRadius), (int) mean[1]),
+			cv::drawMarker(displayFrame, cv::Point2i((int)(mean[0] - pxRadius), (int)mean[1]),
 				cv::Scalar(255, 0, 0, 0), 0, 10, 1);
-			cv::drawMarker(displayFrame, cv::Point2i((int) mean[0], (int) (mean[1] + pxRadius)),
+			cv::drawMarker(displayFrame, cv::Point2i((int)mean[0], (int)(mean[1] + pxRadius)),
 				cv::Scalar(255, 0, 0, 0), 0, 10, 1);
-			cv::drawMarker(displayFrame, cv::Point2i((int) mean[0], (int)(mean[1] - pxRadius)),
+			cv::drawMarker(displayFrame, cv::Point2i((int)mean[0], (int)(mean[1] - pxRadius)),
 				cv::Scalar(255, 0, 0, 0), 0, 10, 1);
 
 			double pxX = mean[0] / sw.image_resize_factor;
 			double pxY = mean[1] / sw.image_resize_factor;
 			double area = loc.size() / (sw.image_resize_factor * sw.image_resize_factor);
 
-			bool stop = sendData(pxX, pxY, area);
-			if (stop) {
-				keyboard = 'q';
-				break;
-			}
-
-			if ((timeNow() - startTime) >= initialDelay) {
-
+			if (bCountDownDone) {
+				sendData(pxX, pxY, area);
 			}
 			else {
 				std::chrono::duration<double> deltaT = (timeNow() - startTime);
-				cv::putText(displayFrame, to_string(deltaT.count()),
+				cv::putText(displayFrame, to_string(GUI::dCountDown - deltaT.count()),
 					Point(5, 50), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(255, 0, 255, 0), 2);
 			}
 		}
 		else {
-			if ((timeNow() - startTime) >= initialDelay) {
+			if (bCountDownDone) {
 				cout << "No pixels found" << endl;
 				keyboard = 'q';
 				break;
 			}
 		}
 
-		if(sw.show_frame_rgb)
+		if (sw.show_frame_rgb)
 			imshow("Image", displayFrame);
 
 		blob.download(displayFrame);
-		if(sw.show_frame_mask)
+		if (sw.show_frame_mask)
 			imshow("blob", displayFrame);
 
 		if (sw.show_frame_mask_r)
 			imshow("Mask R", chroma[0]);
 		if (sw.show_frame_mask_g)
-			imshow("Mask G", chroma[1]);;
+			imshow("Mask G", chroma[1]);
 		if (sw.show_frame_mask_s)
-			imshow("Mask S", chroma[3]);;
+			imshow("Mask S", chroma[3]);
 
-		frameCount++;
 		//get the input from the keyboard
 		keyboard = (char)waitKey(1);
 	}
 }
 
-void processVideo(string videoFileName) {
-
+void processVideo(string videoFileName, std::function<void(void)> onStart) {
 	//create the capture object
-	VideoCapture capture(videoFileName.data());
+	VideoCapture capture(videoFileName);
 	capture.set(CAP_PROP_BUFFERSIZE, 2);
+	onStart();
 	Mat frame;
-	while (keyboard != 'q' && keyboard != 27) {
+	while (keyboard != 'q' && keyboard != 27 && !bStop && !GUI::bStopImageProcRequest) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		if (!capture.isOpened()) {
 			//error in opening the video input
 			cerr << "Unable to open video file: " << videoFileName << endl;
-			keyboard = 'q';
+			frameBuff.kill();
 			break;
 		}
 
@@ -366,87 +337,107 @@ void processVideo(string videoFileName) {
 	capture.release();
 }
 
+void motorRunningHandler() {
+	for (uint32_t i = 0; i < sw.motor_buffer_depth; i++) {
+		Motor::history.push({ 0, 0 });
+		Motor::motionHistory.push(false);
+	}
+
+	while (!bStop) {
+		//Wait for start button.
+		while (!GUI::bStartMotorContRequest && !bStop) {
+			this_thread::yield();
+			delay(50);
+		}
+
+		PTC::useSettings(sw, [] {
+			GUI::bStartMotorContRequest = false; //Request to start has been processed
+			GUI::bMotorContRunning = true;
+			});
+		updatePTC(); //Jump to processing
+		PTC::shutdown();
+		GUI::bMotorContRunning = false;
+		GUI::bStartMotorContRequest = false; //Pressing start does nothing when running
+		GUI::bStopMotorContRequest = false; //Request to stop has been processed
+	}
+}
+
+void videoRunningHandler() {
+	while (!bStop) {
+		//Wait for start button.
+		while (!GUI::bStartImageProcRequest && !bStop) {
+			this_thread::yield();
+			delay(50);
+		}
+
+		frameBuff = FrameBuffer(25);
+		std::thread videoReadThread(processVideo, sw.camera, [] {
+			GUI::bStartImageProcRequest = false; //System started
+			GUI::bImageProcRunning = true;
+			});
+		processFrames();
+		videoReadThread.join();
+		GUI::bImageProcRunning = false;
+		GUI::bStartImageProcRequest = false; //Pressing start does nothing when running
+		GUI::bStopImageProcRequest = false; //Request to stop has been processed
+	}
+}
+
+void countDownHandler() {
+	while (!bStop) {
+		while (!GUI::bStartSystemRequest
+			&& (!GUI::bImageProcRunning || !GUI::bMotorContRunning)
+			&& !bStop) {
+			this_thread::yield();
+			delay(50);
+		}
+
+		GUI::bStartSystemRequest = false; //Request to start has been processed
+
+		auto timeStart = timeNow();
+		while (!GUI::bStopSystemRequest && !bStop) {
+			bCountDownDone = (timeNow() - timeStart) > std::chrono::duration<double, std::milli>(GUI::dCountDown*1000.0);
+			GUI::dCountDownValue = (double)(timeNow() - timeStart).count() / 1E9;
+		}
+		bCountDownDone = true;
+		GUI::bSystemRunning = true;
+		while (!GUI::bStopSystemRequest && !bStop) {
+			this_thread::yield();
+			delay(50);
+		}
+		GUI::bSystemRunning = false;
+		bCountDownDone = false;
+		GUI::bStartSystemRequest = false; //Pressing start does nothing when running
+		GUI::bStopSystemRequest = false; //Request to stop has been processed
+	}
+}
+
 int main(int argc, char* argv[]) {
 	//print help information
-	if(sw.print_info)
+	if (sw.print_info)
 		help();
 	//check for the input parameter correctness
-	if (argc > 1 ) {
+	if (argc > 1) {
 		cerr << "Incorrect input list" << endl;
 		cerr << "exiting..." << endl;
 		return EXIT_FAILURE;
 	}
 
 	//create GUI windows
-	if(sw.show_frame_rgb)
+	GUI::StartGUI(sw, &bStop);
+	if (sw.show_frame_rgb)
 		namedWindow("Image");
-	if(sw.show_frame_mask)
+	if (sw.show_frame_mask)
 		namedWindow("blob");
-	
-	if (!sw.socket_enable) {
-		cerr << "Error: Socket must have valid port. Exiting." << endl;
-		exit(-1);
-	}
-	//Setup configuration
-	Network::useSettings(sw);
-	cout << "Starting server";
-	cout << "on port " << sw.socket_port;
-	cout << "..." << endl;
-	Network::startServer();
-	cout << "Server started, waiting for connection..." << endl;
-	Network::acceptConnection();
-	delay(250); //Wait so MATLAB can send input params
-	std::vector<char> clientParams = Network::recvData();
 
-	//Parse and validate the existance of params
-	Document d;
-	d.Parse(clientParams.data());
-	if (!d.HasMember(CIRC) || 
-		!d.HasMember(DELAY) || 
-		!d.HasMember(BEARING) || 
-		!d.HasMember(MODE_SELECT)) {
-		Network::sendData(MISSING, strlen(MISSING));
-		Network::shutdownServer();
-		return EXIT_FAILURE;
-	}
-	else {
-		Network::sendData(READY, strlen(READY));
-	}
-
-	if (sw.print_info) {
-		cout << CIRC << " " << d[CIRC].GetDouble() << endl;
-		cout << DELAY << " " << d[DELAY].GetDouble() << endl;
-		cout << BEARING << " " << d[BEARING].GetDouble() << endl;
-		cout << MODE_SELECT << " " << d[MODE_SELECT].GetBool() << endl;
-	}
-
-	initialDelay = chrono::seconds((int) d[DELAY].GetDouble());
-	bearing = d[BEARING].GetDouble();
-	CameraMath::useSettings(sw, sw.imH, sw.imW, d[CIRC].GetDouble());
-	sendCoordinates = d[MODE_SELECT].GetBool();
-
-	for (uint32_t i = 0; i < sw.motor_buffer_depth; i++) {
-		Motor::history.push({ 0, 0 });
-		Motor::motionHistory.push(false);
-	}
-
-	PTC::useSettings(sw);
-
-	//Create reading thread
-	std::thread videoReadThread(processVideo, sw.camera);
-	std::thread motorsUpdateThread(updatePTC);
-	//Jump to processing function
-	processFrames();
+	//Start CV and motor subsystem handlers
+	std::thread motorsUpdateThread(motorRunningHandler);
+	std::thread videoUpdateThread(videoRunningHandler);
+	std::thread countDownThread(countDownHandler);
 
 	//On exit wait for reading thread
-	videoReadThread.join();
+	videoUpdateThread.join();
 	motorsUpdateThread.join();
-	PTC::shutdown();
-
-	//Send data done value
-	Network::sendData(-1);
-	delay(50);
-	Network::shutdownServer();
 
 	//destroy GUI windows
 	destroyAllWindows();

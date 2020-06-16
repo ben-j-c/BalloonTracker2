@@ -17,6 +17,7 @@ public:
 
 	}
 
+
 	void insertFrame(cv::Mat frame) {
 		while (nextIndex(insertIndex) == readIndex)
 			std::this_thread::yield();
@@ -25,8 +26,10 @@ public:
 	}
 
 	cv::Mat getReadFrame() {
-		while (insertIndex == readIndex)
+		while (insertIndex == readIndex && !killSignal)
 			std::this_thread::yield();
+		if (killSignal)
+			throw std::runtime_error("Attempting to read from killed buffer");
 		return frames[readIndex];
 	}
 

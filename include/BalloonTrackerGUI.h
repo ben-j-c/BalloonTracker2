@@ -14,11 +14,18 @@ namespace GUI {
 
 
 	__declspec(dllimport) bool bStartSystemRequest;
+	__declspec(dllimport) bool bSystemRunning;
 	__declspec(dllimport) bool bStopSystemRequest;
+
 	__declspec(dllimport) bool bStartImageProcRequest;
+	__declspec(dllimport) bool bImageProcRunning;
 	__declspec(dllimport) bool bStopImageProcRequest;
+
 	__declspec(dllimport) bool bStartMotorContRequest;
+	__declspec(dllimport) bool bMotorContRunning;
 	__declspec(dllimport) bool bStopMotorContRequest;
+
+
 	__declspec(dllimport) double dBalloonCirc;
 	__declspec(dllimport) double dCountDown;
 	__declspec(dllimport) double dCountDownValue;

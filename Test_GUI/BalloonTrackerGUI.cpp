@@ -47,12 +47,20 @@ namespace GUI {
 	std::vector<GUI::DataPoint> data;
 	std::mutex dataLock;
 
+
 	__declspec(dllexport) bool bStartSystemRequest = false;
+	__declspec(dllexport) bool bSystemRunning = false;
 	__declspec(dllexport) bool bStopSystemRequest = false;
+
 	__declspec(dllexport) bool bStartImageProcRequest = false;
+	__declspec(dllexport) bool bImageProcRunning = false;
 	__declspec(dllexport) bool bStopImageProcRequest = false;
+
 	__declspec(dllexport) bool bStartMotorContRequest = false;
+	__declspec(dllexport) bool bMotorContRunning = false;
 	__declspec(dllexport) bool bStopMotorContRequest = false;
+
+
 	__declspec(dllexport) double dBalloonCirc = 37.5;
 	__declspec(dllexport) double dCountDown = 30;
 	__declspec(dllexport) double dCountDownValue;
@@ -272,7 +280,24 @@ template<class T> T clamp(T val, T min, T max) {
 	return val;
 }
 
+ImVec4 statusColour(bool req, bool run, bool reqStop) {
+	ImVec4 green(0.0, 1.0, 0.0, 1.0);
+	ImVec4 red(1.0, 0.0, 0.0, 1.0);
+	ImVec4 yellow(1.0, 1.0, 0.0, 1.0);
+	ImVec4 blue(0.0, 0.0, 1.0, 1.0);
 
+	if (run) return green;
+	if (req) return blue;
+	if (reqStop) return yellow;
+	return red;
+}
+
+string statusText(bool req, bool run, bool reqStop) {
+	if (run) return "Running";
+	if (req) return "Starting";
+	if (reqStop) return "Stopping";
+	return "Stopped";
+}
 
 
 
@@ -515,7 +540,8 @@ void drawControls(SettingsWrapper& sw) {
 		bStopMotorContRequest = true;
 	}
 	ImGui::NextColumn();
-	ImGui::TextColored(bStartSystemRequest ? green : red, "%7s", bStartSystemRequest ? "Running" : "Stopped");
+	ImGui::TextColored(statusColour(bStartSystemRequest, bSystemRunning, bStopSystemRequest) , "%7s",
+		statusText(bStartSystemRequest, bSystemRunning, bStopSystemRequest));
 	ImGui::NextColumn();
 
 	ImGui::Text("Image Processing");
@@ -531,7 +557,8 @@ void drawControls(SettingsWrapper& sw) {
 		bStopImageProcRequest = true;
 	}
 	ImGui::NextColumn();
-	ImGui::TextColored(bStartImageProcRequest ? green : red, "%7s", bStartImageProcRequest ? "Running" : "Stopped");
+	ImGui::TextColored(statusColour(bStartImageProcRequest, bImageProcRunning, bStopImageProcRequest), "%7s",
+		statusText(bStartImageProcRequest, bImageProcRunning, bStopImageProcRequest));
 	ImGui::NextColumn();
 
 
@@ -549,7 +576,8 @@ void drawControls(SettingsWrapper& sw) {
 		bStopMotorContRequest = true;
 	}
 	ImGui::NextColumn();
-	ImGui::TextColored(bStartMotorContRequest ? green : red, "%7s", bStartMotorContRequest ? "Running" : "Stopped");
+	ImGui::TextColored(statusColour(bStartMotorContRequest, bMotorContRunning, bStopMotorContRequest), "%7s",
+		statusText(bStartMotorContRequest, bMotorContRunning, bStopMotorContRequest));
 	ImGui::NextColumn();
 
 	ImGui::Columns(1, nullptr, false);
@@ -563,7 +591,7 @@ void drawControls(SettingsWrapper& sw) {
 
 void drawRightPanel(SettingsWrapper &sw) {
 	static std::vector<std::shared_ptr<char>> lines;
-	static int frameCount;
+	static int iFrameCount;
 	static std::vector<float> mPanData;
 	static std::vector<float> mTiltData;
 	static std::vector<float> pPanData;
@@ -629,7 +657,7 @@ void drawRightPanel(SettingsWrapper &sw) {
 	ImGui::SliderInt("Display range min", &indexA, 0, indexB);
 	ImGui::SliderInt("Display range max", &indexB, indexA, dataSize-1);
 
-	frameCount++;
+	iFrameCount++;
 }
 
 

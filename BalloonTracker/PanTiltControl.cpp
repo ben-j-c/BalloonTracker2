@@ -77,7 +77,7 @@ void PTC::shutdown() {
 	delete ardy;
 }
 
-void PTC::useSettings(SettingsWrapper& wrap) {
+void PTC::useSettings(SettingsWrapper& wrap, const std::function<void(void)>& onStart) {
 	sw = wrap;
 	PTC::pan = (int) (sw.motor_pan_forward - sw.motor_pan_min);
 	PTC::tilt = (int) (sw.motor_tilt_forward - sw.motor_tilt_min);
@@ -103,6 +103,7 @@ void PTC::useSettings(SettingsWrapper& wrap) {
 	else
 		exit(-1);
 	writePos((int)(PTC::pan + sw.motor_pan_min), (int)(PTC::tilt + sw.motor_tilt_min));
+	onStart();
 	delay(50);
 }
 

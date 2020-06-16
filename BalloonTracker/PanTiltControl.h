@@ -1,12 +1,13 @@
 #include <SettingsWrapper.h>
 #include <iostream>
 #include <string>
+#include <functional>
 
 #pragma once
 namespace PTC {
 	extern int pan;
 	extern int tilt;
-	void useSettings(SettingsWrapper& sw);
+	void useSettings(SettingsWrapper& wrap, const std::function<void(void)>& onStart);
 	void writePos(int pan, int tilt);
 	void writePosShifted(int pan, int tilt);
 	void moveHome();
