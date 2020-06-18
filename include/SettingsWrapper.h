@@ -1,7 +1,10 @@
 #pragma once
 #include <string>
 #include <sstream>
+#define RAPIDJSON_HAS_STDSTRING 1
 #include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 #include <fstream>
 #include <vector>
 
@@ -11,8 +14,7 @@ using std::ifstream;
 using rapidjson::Document;
 using rapidjson::Value;
 
-#define SETTINGSENTRY(x, name) SettingsEntry_##x name{ #name }
-
+#define SETTINGSENTRY(x, name) SettingsEntry_##x name{ #name, all };
 
 class SettingsEntryCommon;
 namespace SettingsWrapperList {
@@ -24,8 +26,8 @@ public:
 	string name;
 	string type;
 
-	SettingsEntryCommon(const std::string& name, const std::string& type) : name(name), type(type) {
-		SettingsWrapperList::all.push_back(this);
+	SettingsEntryCommon(const std::string& name, const std::string& type, std::vector<SettingsEntryCommon*>& vec) : name(name), type(type) {
+		vec.push_back(this);
 	}
 
 	virtual bool validateExistance(Document &d) {
@@ -40,14 +42,14 @@ class SettingsEntry_bool : public SettingsEntryCommon {
 public:
 	bool data;
 
-	SettingsEntry_bool(const std::string& name) : SettingsEntryCommon(name, "bool") {}
+	SettingsEntry_bool(const std::string& name, std::vector<SettingsEntryCommon*>& vec) : SettingsEntryCommon(name, "bool", vec) {}
 
 	virtual bool validateType(Document &d) {
 		return d[name.c_str()].IsBool();
 	}
 
 	virtual void addMember(Document &d) {
-
+		d.AddMember(rapidjson::StringRef(name), Value(data), d.GetAllocator());
 	}
 
 	virtual void loadData(Document &d) {
@@ -71,13 +73,14 @@ class SettingsEntry_int : public SettingsEntryCommon {
 public:
 	int data;
 
-	SettingsEntry_int(const std::string& name) : SettingsEntryCommon(name, "int") {}
+	SettingsEntry_int(const std::string& name, std::vector<SettingsEntryCommon*>& vec) : SettingsEntryCommon(name, "int", vec) {}
 
 	virtual bool validateType(Document &d) {
 		return d[name.c_str()].IsInt();
 	}
 
 	virtual void addMember(Document &d) {
+		d.AddMember(rapidjson::StringRef(name), Value(data), d.GetAllocator());
 	}
 
 	virtual void loadData(Document &d) {
@@ -101,13 +104,14 @@ class SettingsEntry_uint32_t : public SettingsEntryCommon {
 public:
 	uint32_t data;
 
-	SettingsEntry_uint32_t(const std::string& name) : SettingsEntryCommon(name, "uint32_t") {}
+	SettingsEntry_uint32_t(const std::string& name, std::vector<SettingsEntryCommon*>& vec) : SettingsEntryCommon(name, "uint32_t", vec) {}
 
 	virtual bool validateType(Document &d) {
 		return d[name.c_str()].IsUint();
 	}
 
 	virtual void addMember(Document &d) {
+		d.AddMember(rapidjson::StringRef(name), Value(data), d.GetAllocator());
 	}
 
 	virtual void loadData(Document &d) {
@@ -131,13 +135,14 @@ class SettingsEntry_uint8_t : public SettingsEntryCommon {
 public:
 	uint8_t data;
 
-	SettingsEntry_uint8_t(const std::string& name) : SettingsEntryCommon(name, "uint8_t") {}
+	SettingsEntry_uint8_t(const std::string& name, std::vector<SettingsEntryCommon*>& vec) : SettingsEntryCommon(name, "uint8_t", vec) {}
 
 	virtual bool validateType(Document &d) {
 		return d[name.c_str()].IsUint();
 	}
 
 	virtual void addMember(Document &d) {
+		d.AddMember(rapidjson::StringRef(name), Value(data), d.GetAllocator());
 	}
 
 	virtual void loadData(Document &d) {
@@ -161,13 +166,14 @@ class SettingsEntry_double : public SettingsEntryCommon {
 public:
 	double data;
 
-	SettingsEntry_double(const std::string& name) : SettingsEntryCommon(name, "double") {}
+	SettingsEntry_double(const std::string& name, std::vector<SettingsEntryCommon*>& vec) : SettingsEntryCommon(name, "double", vec) {}
 
 	virtual bool validateType(Document &d) {
 		return d[name.c_str()].IsDouble();
 	}
 
 	virtual void addMember(Document &d) {
+		d.AddMember(rapidjson::StringRef(name), Value(data), d.GetAllocator());
 	}
 
 	virtual void loadData(Document &d) {
@@ -191,13 +197,14 @@ class SettingsEntry_string : public SettingsEntryCommon {
 public:
 	string data;
 
-	SettingsEntry_string(const std::string& name) : SettingsEntryCommon(name, "string") {}
+	SettingsEntry_string(const std::string& name, std::vector<SettingsEntryCommon*>& vec) : SettingsEntryCommon(name, "string", vec) {}
 
 	virtual bool validateType(Document &d) {
 		return d[name.c_str()].IsString();
 	}
 
 	virtual void addMember(Document &d) {
+		d.AddMember(rapidjson::StringRef(name), data, d.GetAllocator());
 	}
 
 	virtual void loadData(Document &d) {
@@ -219,6 +226,8 @@ public:
 
 class SettingsWrapper {
 public:
+	std::vector<SettingsEntryCommon*> all;
+
 	SETTINGSENTRY(bool, debug);
 
 	SETTINGSENTRY(int, com_timeout);
@@ -274,7 +283,7 @@ public:
 
 private:
 	void verifyExistance(Document& d) {
-		for (auto& v : SettingsWrapperList::all) {
+		for (auto& v : all) {
 			if (!v->validateExistance(d)) {
 				throw std::runtime_error("JSON setting missing: " + v->name);
 			}
@@ -282,7 +291,7 @@ private:
 	}
 
 	void verifyType(Document& d) {
-		for (auto& v : SettingsWrapperList::all) {
+		for (auto& v : all) {
 			if (!v->validateType(d)) {
 				throw std::runtime_error("JSON has wrong type: " + v->name + "(should be " + + ")");
 			}
@@ -290,7 +299,7 @@ private:
 	}
 
 	void loadValues(Document& d) {
-		for (auto& v : SettingsWrapperList::all) {
+		for (auto& v : all) {
 			v->loadData(d);
 		}
 	}
@@ -321,5 +330,18 @@ public:
 		if (!fileStream.is_open()) {
 			throw "File was not opened or not found.";
 		}
+		Document d;
+		d.SetObject();
+		for (auto& v : all) {
+			v->addMember(d);
+		}
+
+		rapidjson::StringBuffer buf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(buf);
+		d.Accept(writer);
+
+		std::string s(buf.GetString());
+		fileStream << s;
+		fileStream.close();
 	}
 };

@@ -14,6 +14,8 @@
 #include <chrono>
 #include <future>
 #include <mutex>
+#include <algorithm>
+#include <cctype>
 
 #define GLEW_STATIC
 #include <GL/glew.h>
@@ -314,7 +316,7 @@ string statusText(bool req, bool run, bool reqStop) {
 
 void drawSettings(SettingsWrapper& sw) {
 	if (ImGui::CollapsingHeader("COM")) {
-		if (bStartMotorContRequest)
+		if (bStartMotorContRequest || bMotorContRunning)
 			ImGui::TextColored({ 1,0,0,1 }, "Some settings can't be changed while some systems are running.");
 
 		int port = sw.com_port, timeout = sw.com_timeout, baud = sw.com_baud, baudIndex;
@@ -336,7 +338,7 @@ void drawSettings(SettingsWrapper& sw) {
 		ImGui::Combo("Baud", &baudIndex, " 110\0 300\0 600\0 1200\0 2400\0 4800\0 9600\0 14400\0 19200\0 38400\0 57600\0 115200");
 		baud = baudList[baudIndex];
 
-		if (!bStartMotorContRequest) {
+		if (!bStartMotorContRequest && !bMotorContRunning) {
 			sw.com_port = (port = clamp(port, 0, 12));
 			sw.com_timeout = (timeout = clamp(timeout, 0, 10000));
 			sw.com_baud = (baud = clamp(baud, 0, 115200));
@@ -347,7 +349,7 @@ void drawSettings(SettingsWrapper& sw) {
 	ImGui::Columns(1, nullptr, false);
 
 	if (ImGui::CollapsingHeader("Camera")) {
-		if (bStartImageProcRequest)
+		if (bStartImageProcRequest || bImageProcRunning)
 			ImGui::TextColored({ 1,0,0,1 }, "Some settings can't be changed while some systems are running.");
 		double sensWidth = sw.sensor_width,
 			sensHeight = sw.sensor_height,
@@ -360,7 +362,7 @@ void drawSettings(SettingsWrapper& sw) {
 
 		char cameraAddress[512];
 		strcpy_s<512>(cameraAddress, ((string)sw.camera).c_str());
-		if (ImGui::InputText("Address", cameraAddress, 512) && !bStartImageProcRequest) {
+		if (ImGui::InputText("Address", cameraAddress, 512) && !bStartImageProcRequest && !bImageProcRunning) {
 			sw.camera = std::string(cameraAddress);
 		}
 		ImGui::SameLine(); HelpMarker("The network address of the IP camera.");
@@ -390,14 +392,14 @@ void drawSettings(SettingsWrapper& sw) {
 		sw.focal_length_max = clamp(focalMax, focalMin, inf);
 		sw.principal_x = clamp(principalX, 0., inf);
 		sw.principal_y = clamp(principalY, 0., inf);
-		if (!bStartImageProcRequest) {
+		if (!bStartImageProcRequest && !bImageProcRunning) {
 			sw.imW = clamp(imW, 1, INT_MAX);
 			sw.imH = clamp(imH, 1, INT_MAX);
 		}
 	}
 
 	if (ImGui::CollapsingHeader("Image processing")) {
-		if (bStartImageProcRequest)
+		if (bStartImageProcRequest || bImageProcRunning)
 			ImGui::TextColored({ 1,0,0,1 }, "Some settings can't be changed while some systems are running.");
 		int RGS[3] = { (int) sw.thresh_red, (int) sw.thresh_green, (int) sw.thresh_s };
 		float resizeFac = (float) sw.image_resize_factor;
@@ -410,12 +412,12 @@ void drawSettings(SettingsWrapper& sw) {
 		sw.thresh_red = clamp(RGS[0], 0, 255);
 		sw.thresh_green = clamp(RGS[1], 0, 255);
 		sw.thresh_s = clamp(RGS[2], 0, 255);
-		if (!bStartImageProcRequest)
+		if (!bStartImageProcRequest && !bImageProcRunning)
 			sw.image_resize_factor = clamp(resizeFac, 0.0f, 1.0f);
 	}
 
 	if (ImGui::CollapsingHeader("Motor control")) {
-		if (bStartMotorContRequest)
+		if (bStartMotorContRequest || bMotorContRunning)
 			ImGui::TextColored({ 1,0,0,1 }, "Some settings can't be changed while some systems are running.");
 		double panFac = sw.motor_pan_factor,
 			panMin = sw.motor_pan_min,
@@ -446,7 +448,7 @@ void drawSettings(SettingsWrapper& sw) {
 		ImGui::InputInt("Latency of camera", &depth);
 		ImGui::SameLine(); HelpMarker("Number of frames from action to received frame.");
 
-		if (!bStartMotorContRequest) {
+		if (!bStartMotorContRequest && !bMotorContRunning) {
 			sw.motor_pan_factor = panFac;
 			sw.motor_pan_min = panMin;
 			sw.motor_pan_max = panMax;
@@ -456,7 +458,7 @@ void drawSettings(SettingsWrapper& sw) {
 			sw.motor_tilt_max = tiltMax;
 			sw.motor_tilt_forward = tiltFor;
 		}
-		if (!bStartImageProcRequest && !bStartMotorContRequest) {
+		if (!bStartImageProcRequest && !bStartMotorContRequest && !bImageProcRunning && !bMotorContRunning) {
 			sw.motor_buffer_depth = depth;
 		}
 	}
@@ -735,13 +737,13 @@ namespace GUI {
 			if (ImGui::BeginMainMenuBar()) {
 				if (ImGui::BeginMenu("File")) {
 					if (ImGui::MenuItem("New data")) {
-						std::string sFileResult = getFileDialog(true, L"Table\0*.CSV\0All\0*.*\0", sw.save_directory);
+						std::string sFileResult = getFileDialog(true, L"Table (.CSV)\0*.CSV\0All\0*.*\0", sw.save_directory);
 						if (sFileResult.size())
 							sFileName = sFileResult;
 					}
 					if (ImGui::BeginMenu("Save data")) {
 						if (ImGui::MenuItem("Save As")) {
-							std::string sFileResult = getFileDialog(true, L"Table\0*.CSV\0All\0*.*\0", sw.save_directory);
+							std::string sFileResult = getFileDialog(true, L"Table (.CSV)\0*.CSV\0All\0*.*\0", sw.save_directory);
 							if (sFileResult.size()) {
 								sFileName = sFileResult;
 								saveData(sFileName, sw);
@@ -763,16 +765,31 @@ namespace GUI {
 						ImGui::EndMenu();
 					}
 					if (ImGui::MenuItem("Load data")) {
-						std::string sFileResult = getFileDialog(false, L"Table\0*.CSV\0All\0*.*\0", sw.save_directory);
+						std::string sFileResult = getFileDialog(false, L"Table (.CSV)\0*.CSV\0All\0*.*\0", sw.save_directory);
 						if (sFileResult.size())
 							sFileName = sFileResult;
 					}
 					ImGui::Separator();
 					if (ImGui::MenuItem("Save settings")) {
-						std::string saveFile = getFileDialog(true, L"Settings\0*.JSON\0All\0*.*\0", sw.save_directory);
+						std::string saveFile = getFileDialog(true, L"Settings (.JSON)\0*.JSON\0All\0*.*\0", sw.save_directory);
+						if (saveFile.size()) {
+							//C:/a
+							if (saveFile.size() > 4) {
+								std:string ext = saveFile.substr(saveFile.size() - 5);
+								std::transform(ext.begin(), ext.end(), ext.begin(),
+									[](unsigned char c) { return std::tolower(c); });
+								if(ext.compare(".json") != 0)
+									saveFile.append(".json");
+							} 
+							else {
+								saveFile.append(".json");
+							}
+
+							sw.saveSettings(saveFile);
+						}
 					}
 					if (ImGui::MenuItem("Load settings")) {
-						std::string loadFile = getFileDialog(false, L"Settings\0*.JSON\0All\0*.*\0", sw.save_directory);
+						std::string loadFile = getFileDialog(false, L"Settings (.JSON)\0*.JSON\0All\0*.*\0", sw.save_directory);
 					}
 					if (ImGui::MenuItem("Select save directory")) {
 						std::string sDir = getFolderDialog();
