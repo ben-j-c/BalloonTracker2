@@ -37,6 +37,8 @@
 #error("Program only compatible with x64 Windows")
 #endif // _WIN64
 
+#define STR_
+
 
 
 namespace GUI {
@@ -313,6 +315,43 @@ string statusText(bool req, bool run, bool reqStop) {
 	return string("Stopped");
 }
 
+//Check if the given string has the extension, else append it.
+void enforceExtension(std::string& fileName, std::string&& type) {
+	if (fileName.size() >= type.size()) {
+	std:string ext = fileName.substr(fileName.size() - type.size());
+		std::transform(ext.begin(), ext.end(), ext.begin(),
+			[](unsigned char c) { return std::tolower(c); });
+		std::transform(type.begin(), type.end(), type.begin(),
+			[](unsigned char c) { return std::tolower(c); });
+		if (ext.compare(type) != 0)
+			fileName.append(type);
+	}
+	else {
+		fileName.append(type);
+	}
+}
+
+bool containsString(std::vector<string> v, const string& s) {
+	for (auto e : v)
+		if (e.compare(s) == 0)
+			return true;
+}
+
+std::vector<string> split(const string& s, char delim) {
+	if (s.size() < 1)
+		return {};
+
+	std::vector<string> returner;
+	for (size_t a = 0, b = 0; a < s.size(); b++) {
+		if (s[a + b] == delim || a + b >= s.size()) {
+			returner.push_back(s.substr(a, b));
+			a += b + 1;
+			b = -1;
+		}
+	}
+	return returner;
+}
+
 void clearData() {
 	std::lock_guard<std::mutex> lck(GUI::dataLock);
 
@@ -328,22 +367,74 @@ void clearData() {
 	Disp::pTiltData.clear();
 }
 
-//Check if the given string has the extension, else append it.
-void enforceExtension(std::string& fileName, std::string&& type) {
-	if (fileName.size() >= type.size()) {
-		std:string ext = fileName.substr(fileName.size() - type.size());
-		std::transform(ext.begin(), ext.end(), ext.begin(),
-			[](unsigned char c) { return std::tolower(c); });
-		std::transform(type.begin(), type.end(), type.begin(),
-			[](unsigned char c) { return std::tolower(c); });
-		if (ext.compare(type) != 0)
-			fileName.append(type);
-	}
-	else {
-		fileName.append(type);
+void loadData(const string& fileName, SettingsWrapper& sw) {
+	clearData();
+	std::lock_guard<std::mutex> lck(GUI::dataLock);
+
+	std::ifstream f(fileName);
+	if (!f.is_open()) {
+		fprintf(stderr, "Can't open file \"%s\"", fileName.c_str());
 	}
 
+	std::vector<char> line(512);
+	{
+		
+		f.getline(line.data(), 512);
+		auto cols = split(string(line.data()), ',');
+
+		if (cols.size() > 0) {
+			sw.report_frame_number = cols[0].compare("Frame") == 0;
+			sw.report_altitude_estimation = containsString(cols, "Altitude");
+			sw.report_motor_rotation = containsString(cols, "mPan") && containsString(cols, "mTilt");
+			sw.report_perceived_rotation = containsString(cols, "pPan") && containsString(cols, "pTilt");
+			sw.report_pose_estimation = containsString(cols, "X") && containsString(cols, "Y") && containsString(cols, "Z");
+		}
+		else {
+			return;
+		}
+
+	}
+
+	
+	for (size_t i = 0; f.good(); i++) {
+		data.emplace_back();
+		f.getline(line.data(), 512);
+		auto cols = split(string(line.data()), ',');
+		size_t idx = 0;
+
+		try {
+			if (sw.report_frame_number) {
+				data[i].index = std::stoull(cols[idx++]);
+			}
+			else {
+				data[i].index = (uint64_t) round(std::stod(cols[idx++])*sw.camera_framerate);
+			}
+			if (sw.report_pose_estimation) {
+				data[i].x = std::stod(cols[idx++]);
+				data[i].y = std::stod(cols[idx++]);
+				data[i].z = std::stod(cols[idx++]);
+			}
+			if (sw.report_altitude_estimation) {
+				data[i].y = std::stod(cols[idx++]);
+			}
+			if (sw.report_motor_rotation) {
+				data[i].mPan = std::stod(cols[idx++]);
+				data[i].mTilt = std::stod(cols[idx++]);
+			}
+			if (sw.report_perceived_rotation) {
+				data[i].pPan = std::stod(cols[idx++]);
+				data[i].pTilt = std::stod(cols[idx++]);
+			}
+		}
+		catch (std::exception e) {
+			printf("%s\n", e.what());
+			printf("Can't read data file due to unexpected format.");
+			return;
+		}
+	}
 }
+
+
 
 
 
@@ -804,10 +895,18 @@ namespace GUI {
 						}
 						ImGui::EndMenu();
 					}
-					if (ImGui::MenuItem("Load data")) {
+					if (ImGui::MenuItem("Load data", "", nullptr,
+							!(GUI::bStartImageProcRequest
+							|| GUI::bStartMotorContRequest
+							|| GUI::bStartSystemRequest
+							|| GUI::bImageProcRunning
+							|| GUI::bMotorContRunning
+							|| GUI::bSystemRunning))) {
 						std::string sFileResult = getFileDialog(false, L"Table (.CSV)\0*.CSV\0All\0*.*\0", sw.save_directory);
-						if (sFileResult.size())
+						if (sFileResult.size()) {
 							sFileName = sFileResult;
+							loadData(sFileName, sw);
+						}
 					}
 					ImGui::Separator();
 					if (ImGui::MenuItem("Save settings")) {
@@ -817,8 +916,16 @@ namespace GUI {
 							sw.saveSettings(saveFile);
 						}
 					}
-					if (ImGui::MenuItem("Load settings")) {
+					if (ImGui::MenuItem("Load settings", "", nullptr,
+							!(GUI::bStartImageProcRequest
+							|| GUI::bStartMotorContRequest
+							|| GUI::bStartSystemRequest
+							|| GUI::bImageProcRunning
+							|| GUI::bMotorContRunning
+							|| GUI::bSystemRunning))) {
 						std::string loadFile = getFileDialog(false, L"Settings (.JSON)\0*.JSON\0All\0*.*\0", sw.save_directory);
+						if (loadFile.size() > 0)
+							sw.loadSettings(loadFile);
 					}
 					if (ImGui::MenuItem("Select save directory")) {
 						std::string sDir = getFolderDialog();
