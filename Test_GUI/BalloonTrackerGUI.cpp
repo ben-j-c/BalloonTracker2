@@ -328,6 +328,23 @@ void clearData() {
 	Disp::pTiltData.clear();
 }
 
+//Check if the given string has the extension, else append it.
+void enforceExtension(std::string& fileName, std::string&& type) {
+	if (fileName.size() >= type.size()) {
+		std:string ext = fileName.substr(fileName.size() - type.size());
+		std::transform(ext.begin(), ext.end(), ext.begin(),
+			[](unsigned char c) { return std::tolower(c); });
+		std::transform(type.begin(), type.end(), type.begin(),
+			[](unsigned char c) { return std::tolower(c); });
+		if (ext.compare(type) != 0)
+			fileName.append(type);
+	}
+	else {
+		fileName.append(type);
+	}
+
+}
+
 
 
 
@@ -758,6 +775,7 @@ namespace GUI {
 						std::string sFileResult = getFileDialog(true, L"Table (.CSV)\0*.CSV\0All\0*.*\0", sw.save_directory);
 						if (sFileResult.size()) {
 							sFileName = sFileResult;
+							enforceExtension(sFileName, ".CSV");
 							clearData();
 						}
 							
@@ -767,6 +785,7 @@ namespace GUI {
 							std::string sFileResult = getFileDialog(true, L"Table (.CSV)\0*.CSV\0All\0*.*\0", sw.save_directory);
 							if (sFileResult.size()) {
 								sFileName = sFileResult;
+								enforceExtension(sFileName, ".CSV");
 								saveData(sFileName, sw);
 							}
 						}
@@ -794,18 +813,7 @@ namespace GUI {
 					if (ImGui::MenuItem("Save settings")) {
 						std::string saveFile = getFileDialog(true, L"Settings (.JSON)\0*.JSON\0All\0*.*\0", sw.save_directory);
 						if (saveFile.size()) {
-							//C:/a
-							if (saveFile.size() > 4) {
-								std:string ext = saveFile.substr(saveFile.size() - 5);
-								std::transform(ext.begin(), ext.end(), ext.begin(),
-									[](unsigned char c) { return std::tolower(c); });
-								if(ext.compare(".json") != 0)
-									saveFile.append(".json");
-							} 
-							else {
-								saveFile.append(".json");
-							}
-
+							enforceExtension(saveFile, ".JSON");
 							sw.saveSettings(saveFile);
 						}
 					}
