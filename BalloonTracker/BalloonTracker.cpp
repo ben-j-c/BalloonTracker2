@@ -398,7 +398,7 @@ void videoRunningHandler() {
 void countDownHandler() {
 	while (!bStop) {
 		while (!bStop && !GUI::bStartSystemRequest) {
-			if(!GUI::bImageProcRunning && !GUI::bMotorContRunning && !GUI::)
+			if(!GUI::bImageProcRunning && !GUI::bMotorContRunning)
 				GUI::bStopSystemRequest = false;
 			this_thread::yield();
 			delay(50);
