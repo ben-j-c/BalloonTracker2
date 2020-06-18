@@ -69,6 +69,18 @@ namespace GUI {
 	__declspec(dllexport) float fBearing = 0;
 }
 
+namespace Disp {
+	static std::vector<std::shared_ptr<char>> lines;
+	static std::vector<char*> linesPtr;
+	int iFrameCount;
+	int currentLine = 0;
+	std::vector<float> mPanData;
+	std::vector<float> mTiltData;
+	std::vector<float> pPanData;
+	std::vector<float> pTiltData;
+	std::vector<float> altitudeData;
+}
+
 
 int display_w, display_h;
 
@@ -299,6 +311,21 @@ string statusText(bool req, bool run, bool reqStop) {
 	if (req) return string("Starting");
 	if (reqStop) return string("Stopping");
 	return string("Stopped");
+}
+
+void clearData() {
+	std::lock_guard<std::mutex> lck(GUI::dataLock);
+
+	GUI::data.clear();
+	Disp::altitudeData.clear();
+	Disp::currentLine = 0;
+	Disp::iFrameCount = 0;
+	Disp::lines.clear();
+	Disp::linesPtr.clear();
+	Disp::mPanData.clear();
+	Disp::mTiltData.clear();
+	Disp::pPanData.clear();
+	Disp::pTiltData.clear();
 }
 
 
@@ -592,17 +619,8 @@ void drawControls(SettingsWrapper& sw) {
 
 
 void drawRightPanel(SettingsWrapper &sw) {
-	static std::vector<std::shared_ptr<char>> lines;
-	static int iFrameCount;
-	static std::vector<float> mPanData;
-	static std::vector<float> mTiltData;
-	static std::vector<float> pPanData;
-	static std::vector<float> pTiltData;
-	static std::vector<float> altitudeData;
+	using namespace Disp;
 
-	static std::vector<char*> linesPtr;
-
-	static int currentLine = 0;
 	if (lines.size() < 1) {
 		lines.emplace_back(new char[512]);
 		linesPtr.emplace_back(lines[0].get());
@@ -738,8 +756,11 @@ namespace GUI {
 				if (ImGui::BeginMenu("File")) {
 					if (ImGui::MenuItem("New data")) {
 						std::string sFileResult = getFileDialog(true, L"Table (.CSV)\0*.CSV\0All\0*.*\0", sw.save_directory);
-						if (sFileResult.size())
+						if (sFileResult.size()) {
 							sFileName = sFileResult;
+							clearData();
+						}
+							
 					}
 					if (ImGui::BeginMenu("Save data")) {
 						if (ImGui::MenuItem("Save As")) {
