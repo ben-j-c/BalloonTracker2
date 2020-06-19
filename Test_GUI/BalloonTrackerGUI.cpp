@@ -158,7 +158,7 @@ static std::string getFileDialog(bool save, const wchar_t* filter, const std::st
 	}
 	return "";
 #else
-	throw std::runtime_error("This action requires a file dialog; not supported on non-Windows platforms.");
+	throw std::runtime_error("This action requires a file dialog; not supported on non-Windows x64 platforms.");
 #endif // _WIN64
 }
 
@@ -186,7 +186,7 @@ static std::string getFolderDialog() {
 		return "";
 	return std::string(cfolderName);
 #else
-	throw std::runtime_error("This action requires a folder dialog; not supported on non-Windows platforms.");
+	throw std::runtime_error("This action requires a folder dialog; not supported on non-Windows x64 platforms.");
 #endif // _WIN64
 }
 

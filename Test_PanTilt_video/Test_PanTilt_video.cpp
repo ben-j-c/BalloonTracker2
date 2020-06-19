@@ -28,14 +28,10 @@
 #include <opencv2/core/cuda.hpp>
 #include <opencv2/core/cuda.inl.hpp>
 #include <opencv2/cudaarithm.hpp>
-#include <opencv2/cudabgsegm.hpp>
 #include <opencv2/cudacodec.hpp>
 #include <opencv2/cudafeatures2d.hpp>
 #include <opencv2/cudafilters.hpp>
 #include <opencv2/cudaimgproc.hpp>
-#include <opencv2/cudaobjdetect.hpp>
-#include <opencv2/cudaoptflow.hpp>
-#include <opencv2/cudastereo.hpp>
 #include <opencv2/cudawarping.hpp>>
 
 using namespace cv;
@@ -197,7 +193,7 @@ int main(int argc, char* argv[]) {
 	createTrackbar("R Thresh", "blob", &RThresh, 255, nullptr);
 	createTrackbar("G Thresh", "blob", &GThresh, 255, nullptr);
 
-	PTC::useSettings(sw);
+	PTC::useSettings(sw, [] {; });
 	createTrackbar("Pan", "Image", &PTC::pan, PTC::panRange(), PTC::panCallback);
 	createTrackbar("Tilt", "Image", &PTC::tilt, PTC::tiltRange(), PTC::tiltCallback);
 	//create Background Subtractor objects

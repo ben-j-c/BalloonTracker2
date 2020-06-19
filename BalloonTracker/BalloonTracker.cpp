@@ -1,5 +1,7 @@
 // IPCameraTest.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
+#ifdef _DEBUG
+#endif
 
 // Project
 #include "FrameBuffer.h"
