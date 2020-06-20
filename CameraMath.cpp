@@ -24,9 +24,9 @@ static CameraMath::pos getCoordinates(double pxSize, double pxX, double pxY) {
 	return { x,y,z };
 }
 
-void CameraMath::useSettings(SettingsWrapper & sw, int imageHeight, int imageWidth, double balloonCircumference) {
-	imHeight = imageHeight;
-	imWidth = imageWidth;
+void CameraMath::useSettings(SettingsWrapper & sw, double balloonCircumference) {
+	imHeight = sw.imH;
+	imWidth = sw.imW;
 	f = sw.focal_length_min;
 	sensorW = sw.sensor_width;
 	sensorH = sw.sensor_height;

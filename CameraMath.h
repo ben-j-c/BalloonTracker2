@@ -11,7 +11,7 @@ namespace CameraMath {
 	image width : number of cols in the image
 	balloonCircumference : real world circumference of the balloon in centimeters
 	*/
-	void useSettings(SettingsWrapper &sw, int imageHeight, int imageWidth, double balloonCircumference);
+	void useSettings(SettingsWrapper &sw, double balloonCircumference);
 
 	/* Calculate the radius of the balloon in pixels
 	area : visual area of the balloon in pixels	

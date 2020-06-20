@@ -235,7 +235,7 @@ int main(int argc, char* argv[]) {
 		positionBuffer.push({ 0,0 });
 	}
 
-	CameraMath::useSettings(sw, 1520, 2592, 78.5);
+	CameraMath::useSettings(sw, 78.5);
 
 	//Create reading thread
 	std::thread videoReadThread(processVideo, sw.camera);

@@ -141,7 +141,7 @@ int main(int argc, char* argv[]) {
 	namedWindow("Image");
 	namedWindow("Prior Image");
 	cv::setMouseCallback("Image", onClick);
-	CameraMath::useSettings(sw, 1520, 2592, 40);
+	CameraMath::useSettings(sw, 40);
 	PTC::useSettings(sw, [] {; });
 
 	//create Background Subtractor objects

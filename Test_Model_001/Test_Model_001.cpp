@@ -47,7 +47,7 @@ double point2[30] = {
 using namespace CameraMath;
 
 int main(){
-	useSettings(sw, sw.imH, sw.imW, 100);
+	useSettings(sw, 100);
 
 	double error = 0;
 	for (int i = 0; i < 10; i++) {

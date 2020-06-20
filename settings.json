@@ -1,5 +1,5 @@
 {
-  "debug": false,
+  "debug": true,
   "com_port": 6,
   "com_timeout": 10000,
   "com_baud": 115200,
@@ -34,8 +34,8 @@
   "show_frame_mask_r": false,
   "show_frame_mask_g": false,
   "show_frame_track": false,
-  "print_coordinates": false,
-  "print_rotation": false,
+  "print_coordinates": true,
+  "print_rotation": true,
   "print_info": true,
   "report_motor_rotation": true,
   "report_perceived_rotation": true,

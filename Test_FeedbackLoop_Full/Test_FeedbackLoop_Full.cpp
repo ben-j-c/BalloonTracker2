@@ -296,7 +296,7 @@ int main(int argc, char* argv[]) {
 	PTC::useSettings(sw, [] {; });
 	PTC::moveHome();
 
-	CameraMath::useSettings(sw, 1520, 2592, 78.5);
+	CameraMath::useSettings(sw, 78.5);
 
 	for (int i = 0; i < sw.motor_buffer_depth; i++) {
 		Motor::history.push({ 0, 0 });
