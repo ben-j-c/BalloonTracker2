@@ -34,6 +34,7 @@ public:
 	}
 
 	void readDone() {
+		frames[readIndex].release();
 		readIndex = nextIndex(readIndex);
 	}
 

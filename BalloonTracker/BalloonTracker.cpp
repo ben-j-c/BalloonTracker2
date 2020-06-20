@@ -392,6 +392,7 @@ void videoRunningHandler() {
 			});
 		processFrames();
 		videoReadThread.join();
+		frameBuff = FrameBuffer(200);
 		GUI::bImageProcRunning = false;
 		GUI::bStartImageProcRequest = false; //Pressing start does nothing when running
 		GUI::bStopImageProcRequest = false; //Request to stop has been processed
@@ -428,9 +429,8 @@ void countDownHandler() {
 		bCountDownStarted = false;
 
 		while ( //Wait for systems to shutdown.
-			!bStop && 
-				(!GUI::bStopSystemRequest
-				|| GUI::bImageProcRunning
+			!bStop && !GUI::bStopSystemRequest &&
+				(GUI::bImageProcRunning
 				|| GUI::bMotorContRunning)) {
 			this_thread::yield();
 			delay(50);
