@@ -289,7 +289,7 @@ void processFrames() {
 		}
 		else {
 			if (GUI::bSystemRunning) {
-				cout << "No pixels found" << endl;
+				printf("No pixels found\n");
 				keyboard = 'q';
 				break;
 			}
@@ -338,6 +338,7 @@ void processVideo(string videoFileName, std::function<void(void)> onStart) {
 	capture.release();
 }
 
+/*Perform appropriate startup and shutdown of motor subsystem (handles GUI interface start & stop operations)*/
 void motorRunningHandler() {
 	for (uint32_t i = 0; i < sw.motor_buffer_depth; i++) {
 		Motor::history.push({ 0, 0 });
@@ -366,6 +367,7 @@ void motorRunningHandler() {
 	}
 }
 
+/*Perform appropriate startup and shutdown of video subsystem (handles GUI interface start & stop operations)*/
 void videoRunningHandler() {
 	while (!bStop) {
 		//Wait for start button.
@@ -382,7 +384,8 @@ void videoRunningHandler() {
 		if (sw.show_frame_mask)
 			namedWindow("blob");
 
-		frameBuff = FrameBuffer(25);
+		frameBuff = FrameBuffer(200);
+		CameraMath::useSettings(sw, GUI::dBalloonCirc);
 		std::thread videoReadThread(processVideo, sw.camera, [] {
 			GUI::bImageProcRunning = true;
 			GUI::bStartImageProcRequest = false; //System started
@@ -407,17 +410,21 @@ void countDownHandler() {
 		}
 		if (bStop)
 			return;
-		GUI::bStartSystemRequest = false; //Request to start has been processed
 
 
-		auto timeStart = timeNow();
+		timeStart = timeNow();
 		bCountDownStarted = true;
 		while (!GUI::bStopSystemRequest && !bStop) {
 			auto dt = timeNow() - timeStart;
-			if (dt > std::chrono::duration<double, std::milli>(GUI::dCountDown*1000.0))
-				GUI::bSystemRunning = true;
-			GUI::dCountDownValue = (double) dt.count() / 1E9;
+			if (dt > std::chrono::duration<double, std::milli>(GUI::dCountDown*1000.0)) {
+				if(sw.debug)
+					std::cout << "System started." << std::endl;
+				break;
+			}
+			GUI::dCountDownValue = (double)dt.count() / 1E7;
 		}
+		GUI::bStartSystemRequest = false; //Request to start has been processed
+		GUI::bSystemRunning = true;
 		bCountDownStarted = false;
 
 		while ( //Wait for systems to shutdown.
