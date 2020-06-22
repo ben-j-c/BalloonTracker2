@@ -16,11 +16,6 @@ using rapidjson::Value;
 
 #define SETTINGSENTRY(x, name) SettingsEntry_##x name{ #name, all };
 
-class SettingsEntryCommon;
-namespace SettingsWrapperList {
-	extern std::vector<SettingsEntryCommon*> all;
-};
-
 class SettingsEntryCommon {
 public:
 	string name;
@@ -293,7 +288,9 @@ private:
 	void verifyType(Document& d) {
 		for (auto& v : all) {
 			if (!v->validateType(d)) {
-				throw std::runtime_error("JSON has wrong type: " + v->name + "(should be " + + ")");
+				static const char* types[] =
+				{ "Null", "False", "True", "Object", "Array", "String", "Number" };
+				throw std::runtime_error("JSON entry \"" + v->name + "\" needs to be a " + v->type + ", but was found to be a " + types[d[v->name].GetType()]);
 			}
 		}
 	}
@@ -305,7 +302,13 @@ private:
 	}
 public:
 	SettingsWrapper(string fileName) {
-		loadSettings(fileName);
+		try {
+			loadSettings(fileName);
+		}
+		catch (std::runtime_error e) {
+			printf(e.what());
+			throw e;
+		}
 	}
 
 	SettingsWrapper() = default;
@@ -314,7 +317,7 @@ public:
 
 		std::ifstream fileStream(fileName, std::ifstream::in);
 		if (!fileStream.is_open()) {
-			throw "File was not opened or not found.";
+			throw std::runtime_error("File was not opened or not found.");
 		}
 		stringstream loadedFile;
 		loadedFile << fileStream.rdbuf();
@@ -328,7 +331,7 @@ public:
 	void saveSettings(const string& fileName) {
 		std::ofstream fileStream(fileName, std::ofstream::out);
 		if (!fileStream.is_open()) {
-			throw "File was not opened or not found.";
+			throw std::runtime_error("File was not opened or not found.");
 		}
 		Document d;
 		d.SetObject();

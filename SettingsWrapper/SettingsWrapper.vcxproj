@@ -147,9 +147,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="SettingsWrapper.cpp" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="..\include\SettingsWrapper.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
