@@ -154,9 +154,6 @@
     <ClCompile Include="Test_GUI_Application.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\SettingsWrapper\SettingsWrapper.vcxproj">
-      <Project>{c8edd756-6d79-4596-9932-2281bcb32c61}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\Test_GUI\Test_GUI.vcxproj">
       <Project>{91d5297e-4f9a-4682-9068-31c28b48885f}</Project>
     </ProjectReference>

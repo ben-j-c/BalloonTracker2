@@ -76,7 +76,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Deploy|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <LibraryPath>$(BT_OCV)\x64\vc16\lib;$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(BT_OCV)\x64\vc15\lib;$(LibraryPath)</LibraryPath>
     <ExecutablePath>$(ExecutablePath)</ExecutablePath>
     <IncludePath>$(BT_OCV)\include;$(SolutionDir)BalloonTracker;$(SolutionDir)include;$(SolutionDir);$(IncludePath)</IncludePath>
   </PropertyGroup>
@@ -124,7 +124,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opencv_world349d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opencv_world349.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
