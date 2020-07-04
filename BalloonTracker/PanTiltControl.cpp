@@ -77,7 +77,7 @@ void PTC::shutdown() {
 	delete ardy;
 }
 
-void PTC::useSettings(SettingsWrapper& wrap, const std::function<void(void)>& onStart) {
+bool PTC::useSettings(SettingsWrapper& wrap, const std::function<void(void)>& onStart) {
 	sw = wrap;
 	PTC::pan = (int) (sw.motor_pan_forward - sw.motor_pan_min);
 	PTC::tilt = (int) (sw.motor_tilt_forward - sw.motor_tilt_min);
@@ -87,13 +87,17 @@ void PTC::useSettings(SettingsWrapper& wrap, const std::function<void(void)>& on
 	string comPort = "\\\\.\\COM";
 	comPort += std::to_string(sw.com_port);
 	ardy = new SerialPort(comPort.data(), sw.com_baud);
+	if (!ardy->isConnected())
+		return false;
 	ardy->writeSerialPort("b", 1);
 	for (int i = 0; readBuffer[0] != 'a'; i++) {
 		ardy->readSerialPort(readBuffer, BUFF_LEN);
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		if (readBuffer[0] != 'a') {
-			if (i == 10)
-				std::cerr << "Did not recieve ack from arduino!" << std::endl;
+			if (i == sw.com_timeout / 100) {
+				std::cerr << "Did not recieve ack from arduino! Stopping subsystem." << std::endl;
+				return false;
+			}
 			else
 				std::cout << "Attempting to read ack again" << std::endl;
 		}
@@ -105,6 +109,7 @@ void PTC::useSettings(SettingsWrapper& wrap, const std::function<void(void)>& on
 	writePos((int)(PTC::pan + sw.motor_pan_min), (int)(PTC::tilt + sw.motor_tilt_min));
 	onStart();
 	delay(50);
+	return true;
 }
 
 void PTC::panCallback(int value, void*) {

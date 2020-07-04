@@ -355,10 +355,15 @@ void motorRunningHandler() {
 		if (bStop)
 			return;
 
-		PTC::useSettings(sw, [] {
+		if (!PTC::useSettings(sw, [] {
 			GUI::bMotorContRunning = true;
 			GUI::bStartMotorContRequest = false; //Request to start has been processed
-			});
+			})) {
+			GUI::bMotorContRunning = false;
+			GUI::bStartMotorContRequest = false;
+			GUI::bStopMotorContRequest = false; 
+			continue;
+		}
 		updatePTC(); //Jump to processing
 		PTC::shutdown();
 		GUI::bMotorContRunning = false;

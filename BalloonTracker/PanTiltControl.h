@@ -7,7 +7,7 @@
 namespace PTC {
 	extern int pan;
 	extern int tilt;
-	void useSettings(SettingsWrapper& wrap, const std::function<void(void)>& onStart);
+	bool useSettings(SettingsWrapper& wrap, const std::function<void(void)>& onStart);
 	void writePos(int pan, int tilt);
 	void writePosShifted(int pan, int tilt);
 	void moveHome();
