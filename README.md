@@ -3,6 +3,10 @@ This repo is the code for the Balloon Tracker project.
 The solution directory contains multiple project directories with various purposes.
 The core project is 'BalloonTracker.'
 
+# GUI Demo
+
+![Demo](https://github.com/ben-j-c/BalloonTracker2/blob/master/gui.gif?raw=true "Just a demo.")
+
 # Dependencies
 Compilation dependencies:
 1. Windows 7, 8, 10 (I use Windows specific functions for opening files as well as things like `strcpy_s` (even though I don't need to lol)).
