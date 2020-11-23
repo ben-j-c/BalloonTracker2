@@ -23,7 +23,7 @@
     <ProjectGuid>{E5845811-96BC-4D6A-8208-476522E1B0B9}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>TestPanTiltvideo</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
