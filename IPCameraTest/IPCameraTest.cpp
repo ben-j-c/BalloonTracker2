@@ -2,9 +2,10 @@
 //
 #include "pch.h"
 #include "FrameBuffer.h"
+#include "VideoReader.h"
 #include <SettingsWrapper.h>
 
-#include<vector>
+#include <vector>
 //opencv
 #include "opencv2/imgcodecs.hpp"
 #include "opencv2/imgproc.hpp"
@@ -42,7 +43,7 @@ SettingsWrapper sw("./../settings.json");
 Scalar blobMean;
 
 
-char keyboard; //input from keyboard
+char keyboard = 0; //input from keyboard
 void help() {
 	cout
 		<< "--------------------------------------------------------------------------" << endl
@@ -87,16 +88,7 @@ void processFrames() {
 	std::vector<cuda::GpuMat> chroma(4);
 	Mat displayFrame;
 	keyboard = 0;
-	/*
-	cv::SimpleBlobDetector::Params pr;
-	pr.blobColor = 255;
-	pr.filterByArea = true;
-	pr.filterByCircularity = false;
-	pr.filterByColor = false;
-	pr.filterByConvexity = false;
-	pr.
-	Ptr<cv::SimpleBlobDetector> det = cv::SimpleBlobDetector::create();
-	*/
+	
 	std::chrono::high_resolution_clock timer;
 	using milisec = std::chrono::duration<float, std::milli>;
 	while (keyboard != 'q' && keyboard != 27) {
@@ -105,72 +97,64 @@ void processFrames() {
 
 		cuda::GpuMat gpuFrame(frame);
 		frameBuff.readDone();
-
 		cuda::resize(gpuFrame, resized, cv::Size(gpuFrame.cols/4, gpuFrame.rows/4));
-		rgChroma(resized, chroma);
-		cuda::threshold(chroma[0], chroma[0], sw.thresh_red, 255, THRESH_BINARY);
-		cuda::threshold(chroma[3], chroma[3], sw.thresh_s, 255, THRESH_BINARY);
+		resized.download(displayFrame);
+		imshow("img", displayFrame);
 
-		cuda::bitwise_and(chroma[3], chroma[0], blob);
-		
-
-		std::vector<cv::Point> loc;
-		blob.download(displayFrame);
-		cv::findNonZero(displayFrame, loc);
-		if(loc.size() > 0)
-			blobMean = cv::mean(loc);
+		keyboard = (char)waitKey(1);
 
 		auto stop = timer.now();
 		float dt = std::chrono::duration_cast<milisec>(stop - start).count();
 		frameTimesProc[index_proc] = dt;
 		index_proc = (index_proc + 1) % 10;
-
-
-		chroma[3].download(displayFrame);
-		cv::drawMarker(displayFrame, Point2i(blobMean[0], blobMean[1]), Scalar(255, 0, 0, 0));
-		imshow("S", displayFrame);
-
-		chroma[0].download(displayFrame);
-		imshow("R", displayFrame);
-
-		chroma[1].download(displayFrame);
-		imshow("G", displayFrame);
-
-		chroma[2].download(displayFrame);
-		imshow("B", displayFrame);
-
-		blob.download(displayFrame);
-		imshow("blob", displayFrame);
-
-		//std::vector<cuda::GpuMat> splitImg{ chroma[2], chroma[1], chroma[0] };
-		//cuda::merge(splitImg, gpuFrame);
-
-		//get the input from the keyboard
-		keyboard = (char)waitKey(1);
 	}
 }
 
-void processVideo(char* videoFilename) {
+void consumeBufferedFrames(VideoReader& vid, ImageRes& buff) {
+	using milisec = std::chrono::duration<float, std::milli>;
+	std::chrono::high_resolution_clock timer;
+	auto start = timer.now();
+	vid.readFrame(buff);
+	auto stop = timer.now();
+	auto dt = std::chrono::duration_cast<milisec>(stop - start);
 
-	//create the capture object
-	VideoCapture capture(videoFilename);
-	Mat frame;
+	//We need to drop all the frames we wont use.
+	//We know that the frames pile up before we are able to process them.
+	cout << "INFO: processVideo consuming frames." << endl;
+	while (dt.count() < 1000.0f / 30) {
+		auto start = timer.now();
+		vid.readFrame(buff);
+		auto stop = timer.now();
+		dt = std::chrono::duration_cast<milisec>(stop - start);
+	}
+	cout << "INFO: processVideo consuming frames. DONE" << endl;
+}
+
+/*
+	Continually read frames from the stream and place them in the queue.
+*/
+void processVideo(char* videoFilename) {
+	cout << "INFO: processVideo starting." << endl;
 	std::chrono::high_resolution_clock timer;
 	using milisec = std::chrono::duration<float, std::milli>;
-	while (keyboard != 'q' && keyboard != 27) {
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-		auto start = timer.now();
-		if (!capture.isOpened()) {
-			//error in opening the video input
-			cerr << "Unable to open video file: " << videoFilename << endl;
-			exit(-1);
-		}
+	VideoReader vid(videoFilename);
+	ImageRes buff = vid.readFrame();
+	cout << "INFO: processVideo starting. DONE" << endl;
+	consumeBufferedFrames(vid, buff);
 
-		if (!capture.read(frame)) {
-			capture.release();
-			capture.open(videoFilename);
+	//We need a Mat to be mapped to the buffer we are using to read frames into.
+	Mat frame(vid.getHeight(), vid.getWidth(), CV_8UC3, buff.get());
+	while (keyboard != 'q' && keyboard != 27) {
+		auto start = timer.now();
+		
+		int errorCode = 0;
+		if ((errorCode = vid.readFrame(buff)) < 0) {
+			vid = VideoReader(videoFilename);
+			consumeBufferedFrames(vid, buff);
 			continue;
 		}
+		
+		cv::cvtColor(frame, frame, CV_BGR2RGB);
 		frameBuff.insertFrame(frame.clone());
 
 		auto stop = timer.now();
@@ -178,7 +162,9 @@ void processVideo(char* videoFilename) {
 		frameTimesImageAcq[index_acq] = dt;
 		index_acq = (index_acq + 1) % 10;
 	}
-	capture.release();
+	keyboard = 'q';
+	cout << "INFO: processVideo exiting." << endl;
+	return;
 }
 
 void consoleUpdate() {
@@ -186,13 +172,16 @@ void consoleUpdate() {
 		Scalar imageAcqFPS = cv::mean(frameTimesImageAcq);
 		Scalar imageProcFPS = cv::mean(frameTimesProc);
 
-		for(int i = 0;i < 3;i++)
-			cout << "\33[2K" << "\033[A" << "\r";
+		//for(int i = 0;i < 4;i++)
+		//	cout << "\33[2K" << "\033[A" << "\r";
 
+		/*
 		cout << "Acquisition FPS: " << 1000.0/imageAcqFPS[0] << "             " << endl;
 		cout << "Processing FPS: " << 1000.0/imageProcFPS[0] << "             " << endl;
-		cout << "Blob mean: " << blobMean << "             ";
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		cout << "Blob mean: " << blobMean << "             " << endl;
+		cout << "Buffer depth: " << frameBuff.size() << "             " << endl;
+		*/
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
 }
 
@@ -205,13 +194,6 @@ int main(int argc, char* argv[]) {
 		cerr << "exiting..." << endl;
 		return EXIT_FAILURE;
 	}
-	//create GUI windows
-	namedWindow("S");
-	namedWindow("R");
-	namedWindow("G");
-	namedWindow("B");
-	namedWindow("blob");
-	//create Background Subtractor objects
 	std::thread videoReadThread(processVideo, argv[1]);
 	std::thread consoleUpdateThread(consoleUpdate);
 	processFrames();

@@ -50,12 +50,12 @@ VideoReader::VideoReader(const char* fileName) {
 	try {
 		openFile(fileName);
 	}
-	catch (std::exception& e) {
+	catch (std::exception&) {
 		closeContext();
 	}
 }
 
-FrameBuffer VideoReader::readFrame() {
+ImageRes VideoReader::readFrame() {
 	if ( pFormatContext && pCodecContext && pPacket ) {
 		int avReadFrameResult = 0;
 		while (avReadFrameResult = av_read_frame(pFormatContext, pPacket) >= 0) {
@@ -67,9 +67,10 @@ FrameBuffer VideoReader::readFrame() {
 			AVFrame* rgbFrame;
 			uint8_t* rgbBuffer;
 			rgbFrame = av_frame_alloc();
-			int nBytes = avpicture_get_size(AV_PIX_FMT_RGB24, pCodecContext->width, pCodecContext->height);
+			int nBytes = av_image_get_buffer_size(AV_PIX_FMT_RGB24, pCodecContext->width, pCodecContext->height, 1);
 			rgbBuffer = (uint8_t*)av_malloc(nBytes * sizeof(uint8_t));
-			avpicture_fill((AVPicture*)rgbFrame, rgbBuffer, AV_PIX_FMT_RGB24, pCodecContext->width, pCodecContext->height);
+			//avpicture_fill((AVPicture*)rgbFrame, rgbBuffer, AV_PIX_FMT_RGB24, pCodecContext->width, pCodecContext->height);
+			av_image_fill_arrays(rgbFrame->data, rgbFrame->linesize, rgbBuffer, AV_PIX_FMT_RGB24, pCodecContext->width, pCodecContext->height, 1);
 
 			sws_scale(swsContext, pFrame->data, pFrame->linesize, 0, pFrame->height, rgbFrame->data, rgbFrame->linesize);
 			av_frame_free(&rgbFrame);
@@ -84,14 +85,15 @@ FrameBuffer VideoReader::readFrame() {
 	return nullptr;
 }
 
-bool VideoReader::readFrame(FrameBuffer& rgbBuffer) {
+int VideoReader::readFrame(ImageRes& rgbBuffer) {
+	int avReadFrameResult = 0;
 	if (pFormatContext && pCodecContext && pPacket) {
 		if (!rgbBuffer) {
-			int nBytes = avpicture_get_size(AV_PIX_FMT_RGB24, pCodecContext->width, pCodecContext->height);
-			rgbBuffer = FrameBuffer((uint8_t*)av_malloc(nBytes * sizeof(uint8_t)), [](uint8_t* buff) { av_free(buff); });
+			int nBytes = av_image_get_buffer_size(AV_PIX_FMT_RGB24, pCodecContext->width, pCodecContext->height, 1);
+			rgbBuffer = ImageRes((uint8_t*)av_malloc(nBytes * sizeof(uint8_t)), [](uint8_t* buff) { av_free(buff); });
 		}
-		int avReadFrameResult = 0;
-		while (avReadFrameResult = av_read_frame(pFormatContext, pPacket) >= 0) {
+		
+		while ((avReadFrameResult = av_read_frame(pFormatContext, pPacket)) >= 0) {
 			avcodec_send_packet(pCodecContext, pPacket);
 			avcodec_receive_frame(pCodecContext, pFrame);
 			if (pFrame->data[0] == nullptr)
@@ -99,24 +101,28 @@ bool VideoReader::readFrame(FrameBuffer& rgbBuffer) {
 
 			AVFrame* rgbFrame;
 			rgbFrame = av_frame_alloc();
-			int nBytes = avpicture_get_size(AV_PIX_FMT_RGB24, pCodecContext->width, pCodecContext->height);
-			avpicture_fill((AVPicture*)rgbFrame, rgbBuffer.get(), AV_PIX_FMT_RGB24, pCodecContext->width, pCodecContext->height);
+			int nBytes = av_image_get_buffer_size(AV_PIX_FMT_RGB24, pCodecContext->width, pCodecContext->height, 1);
+			//avpicture_fill((AVPicture*)rgbFrame, rgbBuffer.get(), AV_PIX_FMT_RGB24, pCodecContext->width, pCodecContext->height);
+			av_image_fill_arrays(rgbFrame->data, rgbFrame->linesize, rgbBuffer.get(), AV_PIX_FMT_RGB24, pCodecContext->width, pCodecContext->height, 1);
 
 			sws_scale(swsContext, pFrame->data, pFrame->linesize, 0, pFrame->height, rgbFrame->data, rgbFrame->linesize);
 			av_frame_free(&rgbFrame);
 
-			return true;
+			return avReadFrameResult;
 		}
-		if (avReadFrameResult < 0)
+		if (avReadFrameResult < 0) {
 			closeContext();
+			char temp[64] = { 0 };
+			printf("ERROR: VideoReader \"%s\"\n", av_make_error_string(temp, 64, avReadFrameResult));
+		}
 	}
 
-	return false;
+	return avReadFrameResult;
 }
 
 int VideoReader::size() const {
 	if(pCodecContext)
-		return avpicture_get_size(AV_PIX_FMT_RGB24, pCodecContext->width, pCodecContext->height);
+		return av_image_get_buffer_size(AV_PIX_FMT_RGB24, pCodecContext->width, pCodecContext->height, 1);
 	return 0;
 }
 
@@ -131,6 +137,7 @@ bool VideoReader::ready() const {
 }
 
 void VideoReader::openFile(const char* url) {
+	av_dict_set(&options, "rtsp_transport", "tcp", 0);
 	if (avformat_open_input(&pFormatContext, url, nullptr, nullptr))
 		throw std::runtime_error("avformat could not open");
 
@@ -141,8 +148,8 @@ void VideoReader::openFile(const char* url) {
 	av_dump_format(pFormatContext, 0, url, 0);
 
 	int videoStream = -1;
-	for (int i = 0; i < pFormatContext->nb_streams; i++) {
-		if (pFormatContext->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
+	for (size_t i = 0; i < pFormatContext->nb_streams; i++) {
+		if (pFormatContext->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
 			videoStream = i;
 			break;
 		}
@@ -155,6 +162,9 @@ void VideoReader::openFile(const char* url) {
 
 	pCodecContext = avcodec_alloc_context3(pLocalCodec);
 	avcodec_parameters_to_context(pCodecContext, pLocalCodecParameters);
+	pCodecContext->flags |= AV_CODEC_FLAG_LOOP_FILTER | AV_CODEC_FLAG_LOW_DELAY;
+	av_opt_set(pCodecContext->priv_data, "tune", "zerolatency", 0);
+
 	avcodec_open2(pCodecContext, pLocalCodec, NULL);
 
 	pPacket = av_packet_alloc();
@@ -168,17 +178,21 @@ void VideoReader::openFile(const char* url) {
 
 	width = pCodecContext->width;
 	height = pCodecContext->height;
+
+	
 }
 
 void VideoReader::closeContext() {
 	if(pFrame)
 		av_frame_free(&pFrame);
 	if(pPacket)
-		av_free_packet(pPacket);
+		av_packet_unref(pPacket);
 	if(pCodecContext)
 		avcodec_free_context(&pCodecContext);
 	if (pFormatContext)
 		avformat_free_context(pFormatContext);
+	if (options)
+		av_dict_free(&options);
 
 	pFrame = nullptr;
 	pPacket = nullptr;
@@ -186,4 +200,5 @@ void VideoReader::closeContext() {
 	pFormatContext = nullptr;
 	pLocalCodecParameters = nullptr;
 	pLocalCodec = nullptr;
+	options = nullptr;
 }

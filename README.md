@@ -3,15 +3,36 @@ This repo is the code for the Balloon Tracker project.
 The solution directory contains multiple project directories with various purposes.
 The core project is 'BalloonTracker.'
 
+BalloonTracker software is an application to be used in conjunction with the BalloonTracker hardware. These two components work together to automate the measuring of the wind speed of a red helium balloon.
+
+#The Hardware
+1. A camera with zoom capabilities and Ethernet port for connection to a computer.
+2. Pan-tilt mechanism manipulated by two servo motors.
+3. Microcontroller with USB connection to host system and PWM connection to servo motors.
+4. Battery + regulation for portability.
+5. Housing for mounting all electronics.
+
+The hardware interfaces with the host system (windows computer) over two interfaces; Ethernet for the video feed; and USB for motor control.
+
+#The Software
+1. Image acquisition. A subsystem to interface with the camera and produce image data.
+2. Image processing. A subsystem to turn the image frame into balloon (x,y) coordinates.
+3. Motor control. A subsystem to turn angular positions into a serial command packets.
+4. Model. A subsystem to combine the observations into angular positions of the motors.
+5. View. A subsystem to record data and display to the user.
+
+The software provides feedback for the hardware.
+
 # GUI Demo
 
 ![Demo](https://github.com/ben-j-c/BalloonTracker2/blob/master/gui.gif?raw=true "Just a demo.")
 
 # Dependencies
 Compilation dependencies:
-1. Windows 7, 8, 10 (I use Windows specific functions for opening files as well as things like `strcpy_s` (even though I don't need to lol)).
+1. Windows 7, 8, 10 (I use Windows specific functions for opening files as well my VideoReader class uses windows libraries for FFMPEG).
 2. VisualStudio 2017 (don't see why you couldn't use any other version though).
 3. OpenCV 3.4.9 with CUDA.
+4. FFMPEG. 
 
 Standalone binaries dependencies:
 1. [VisualStudio 2017 redistributable](https://support.microsoft.com/en-ca/help/2977003/the-latest-supported-visual-c-downloads)
@@ -20,11 +41,12 @@ Standalone binaries dependencies:
 # Build environment
 Once the dependencies have been installed, this repo can be cloned and the solution opened.
 Multiple environment variables are required:
-- `BT_OCV`: Root directory of your OpenCV build. i.e., `$(BT_OCV)/include`, `$(BT_OCV)/x64/vc16/lib`, and `$(BT_OCV)/x64/vc15/lib` should all resolve to the proper directories (vc16 for debug binaries iirc, and vc15 for deployment binaries). Feel free to change `vcXX` to whatever suits you. I only have two different libraries because I was too lazy to recompile both debug and release versions of OpenCV.
+- `BT_OCV`: Root directory of your OpenCV build. i.e., `$(BT_OCV)/include`, and `$(BT_OCV)/x64/vc15/lib`, should resolve to the proper directories. Built from source.
 - `GLFW_x64`: Root directory for [GLFW 3.0](https://www.glfw.org/download.html). i.e., `$(GLFW_x64)/lib` should resolve to the library and `$(GLFW_x64)/include` for the headers.
 - `GLEW_PATH`: Root directory for [GLEW](http://glew.sourceforge.net/). i.e., `$(GLEW_PATH)/lib/Release/x64` and `$(GLEW_PATH)/include` blah blah.
+- `FFMPEG_PATH`: Root directory for ffmpeg install directory. Should have `\lib` and `include`. Built from source.
 
-Notice that OpenCV, GLFW, and GLEW all have DLLs. Make sure these are somewhere on your path. OpenCV specifically has the debug (`opencvworld349d.dll`) and release (`opencvworld349.dll`) dlls. I'm also pretty sure that OpenCV has ffmpeg DLLs as well (which I use), so get that on your path too.
+Notice that OpenCV has DLLs. Make sure these are somewhere on your path. OpenCV specifically has the debug (`opencvworld349d.dll`) and release (`opencvworld349.dll`) dlls.
 
 # Information About Other Projects
 Even though only the `BalloonTracker` folder contains the final product, there are additional
@@ -39,7 +61,7 @@ used for:
 - `Test_Camera_Latency` : measuring the delay between when actions occur to when the frame is processed.
 - `Test_FeedbackLoop` : Checking if the balloon is correctly placed in the world.
 - `Test_FeedbackLoop_Full` : Additionally checks if the motors are correctly rotating.
-- `Test_GUI/BalloonTrackerGUI`: Application GUI as a DLL.
+- `Test_GUI_BalloonTrackerGUI`: Application GUI as a DLL.
 - `Test_GUI_Application`: Prototype application GUI.
 - `Test_GUI_Example`: Imgui example GUI application. 
 - `Test_Network_1Hour` : Sends an hours worth of data ensuring the GUI can handle it.

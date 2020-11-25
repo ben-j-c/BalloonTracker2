@@ -42,6 +42,13 @@ public:
 		killSignal = true;
 	}
 
+	int size() {
+		if (insertIndex < readIndex) {
+			return insertIndex + depth - readIndex;
+		}
+		return insertIndex - readIndex;
+	}
+
 private:
 	inline int nextIndex(int idx) {
 		return (idx + 1) % depth;

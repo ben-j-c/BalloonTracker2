@@ -1,6 +1,7 @@
 // Project
 #include <FrameBuffer.h>
 #include <SettingsWrapper.h>
+#include <VideoReader.h>
 
 // C/C++
 #include <limits>
@@ -115,28 +116,44 @@ void processFrames() {
 	free(blackPtr);
 }
 
-void processVideo(string videoFileName) {
+/*
+	Continually read frames from the stream and place them in the queue.
+*/
+void processVideo(const char* videoFilename) {
+	cout << "INFO: processVideo starting." << endl;
+	std::chrono::high_resolution_clock timer;
+	using milisec = std::chrono::duration<float, std::milli>;
+	VideoReader vid(videoFilename);
+	cout << "INFO: processVideo starting. DONE" << endl;
+	ImageRes buff = vid.readFrame();
+	auto start = timer.now();
+	vid.readFrame(buff);
+	auto stop = timer.now();
+	auto dt = std::chrono::duration_cast<milisec>(stop - start);
 
-	//create the capture object
-	VideoCapture capture(videoFileName.data());
-	capture.set(CAP_PROP_BUFFERSIZE, 2);
-	Mat frame;
+	//We need to drop all the frames we wont use.
+	//We know that the frames pile up before we are able to process them.
+	cout << "INFO: processVideo consuming frames." << endl;
+	while (dt.count() < 1000.0f / 30) {
+		auto start = timer.now();
+		vid.readFrame(buff);
+		auto stop = timer.now();
+		dt = std::chrono::duration_cast<milisec>(stop - start);
+	}
+
+	cout << "INFO: processVideo consuming frames. DONE" << endl;
+
+	//We need a Mat to be mapped to the buffer we are using to read frames into.
+	Mat frame(vid.getHeight(), vid.getWidth(), CV_8UC3, buff.get());
 	while (keyboard != 'q' && keyboard != 27) {
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-		if (!capture.isOpened()) {
-			//error in opening the video input
-			cerr << "Unable to open video file: " << videoFileName << endl;
-			exit(-1);
-		}
+		if (!vid.readFrame(buff))
+			break;
 
-		if (!capture.read(frame)) {
-			capture.release();
-			capture.open(videoFileName);
-			continue;
-		}
+		cv::cvtColor(frame, frame, CV_BGR2RGB);
 		frameBuff.insertFrame(frame.clone());
 	}
-	capture.release();
+	cout << "INFO: processVideo exiting." << endl;
+	return;
 }
 
 int main(int argc, char* argv[]) {
@@ -154,7 +171,7 @@ int main(int argc, char* argv[]) {
 	namedWindow("ROI");
 
 	//Create reading thread
-	std::thread videoReadThread(processVideo, sw.camera);
+	std::thread videoReadThread(processVideo, sw.camera.data.c_str());
 	//Jump to processing function
 	processFrames();
 

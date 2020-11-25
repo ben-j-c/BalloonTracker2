@@ -5,11 +5,13 @@
 
 extern "C" {
 #include <libavcodec/avcodec.h>
+#include <libavutil/imgutils.h>
 #include <libavformat/avformat.h>
+#include <libavutil/opt.h>
 #include <libswscale/swscale.h>
 }
 
-typedef std::shared_ptr<uint8_t> FrameBuffer;
+typedef std::shared_ptr<uint8_t> ImageRes;
 
 class VideoReader {
 public:
@@ -22,8 +24,8 @@ public:
 	VideoReader(VideoReader&) = delete;
 	~VideoReader() { closeContext(); };
 
-	FrameBuffer readFrame();
-	bool readFrame(FrameBuffer&);
+	ImageRes readFrame();
+	int readFrame(ImageRes&);
 
 
 	int size() const;
@@ -35,6 +37,7 @@ private:
 	std::string fileName;
 	int height = 0, width = 0 ;
 
+	AVDictionary* options = nullptr;
 	AVFormatContext *pFormatContext = nullptr;
 	AVCodecParameters* pLocalCodecParameters = nullptr;
 	AVCodec* pLocalCodec = nullptr;

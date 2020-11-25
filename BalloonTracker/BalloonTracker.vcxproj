@@ -91,13 +91,13 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <LibraryPath>$(BT_OCV)\x64\vc16\lib;$(LibraryPath)</LibraryPath>
-    <IncludePath>$(BT_OCV)\include;$(SolutionDir)include;$(SolutionDir);$(IncludePath)</IncludePath>
+    <LibraryPath>$(BT_OCV)\x64\vc15\lib;$(FFMPEG_PATH)\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(BT_OCV)\include;$(FFMPEG_PATH)\include;$(SolutionDir);$(SolutionDir)include;$(SolutionDir)BalloonTracker;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Deploy|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <LibraryPath>$(BT_OCV)\x64\vc15\lib;$(LibraryPath)</LibraryPath>
-    <IncludePath>$(BT_OCV)\include;$(SolutionDir)include;$(SolutionDir);$(IncludePath)</IncludePath>
+    <LibraryPath>$(BT_OCV)\x64\vc15\lib;$(FFMPEG_PATH)\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(BT_OCV)\include;$(FFMPEG_PATH)\include;$(SolutionDir);$(SolutionDir)include;$(SolutionDir)BalloonTracker;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -133,17 +133,18 @@
     <ClCompile>
       <PrecompiledHeader>
       </PrecompiledHeader>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>Level2</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <SDLCheck>true</SDLCheck>
+      <SDLCheck>false</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <DisableSpecificWarnings>4996</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opencv_world349d.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opencv_world349d.lib;libavcodec.a;libavdevice.a;libavfilter.a;libavformat.a;libavutil.a;libswresample.a;libswscale.a;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Deploy|x64'">
@@ -165,11 +166,12 @@
       <UndefinePreprocessorDefinitions>
       </UndefinePreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>false</GenerateDebugInformation>
-      <AdditionalDependencies>opencv_world349.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opencv_world349.lib;libavcodec.a;libavdevice.a;libavfilter.a;libavformat.a;libavutil.a;libswresample.a;libswscale.a;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -180,6 +182,7 @@
   <ItemGroup>
     <ClCompile Include="..\CameraMath.cpp" />
     <ClCompile Include="..\Network.cpp" />
+    <ClCompile Include="..\VideoReader.cpp" />
     <ClCompile Include="BalloonTracker.cpp" />
     <ClCompile Include="PanTiltControl.cpp" />
   </ItemGroup>
