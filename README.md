@@ -5,7 +5,7 @@ The core project is 'BalloonTracker.'
 
 BalloonTracker software is an application to be used in conjunction with the BalloonTracker hardware. These two components work together to automate the measuring of the wind speed of a red helium balloon.
 
-#The Hardware
+# The Hardware
 1. A camera with zoom capabilities and Ethernet port for connection to a computer.
 2. Pan-tilt mechanism manipulated by two servo motors.
 3. Microcontroller with USB connection to host system and PWM connection to servo motors.
@@ -14,7 +14,7 @@ BalloonTracker software is an application to be used in conjunction with the Bal
 
 The hardware interfaces with the host system (windows computer) over two interfaces; Ethernet for the video feed; and USB for motor control.
 
-#The Software
+# The Software
 1. Image acquisition. A subsystem to interface with the camera and produce image data.
 2. Image processing. A subsystem to turn the image frame into balloon (x,y) coordinates.
 3. Motor control. A subsystem to turn angular positions into a serial command packets.
