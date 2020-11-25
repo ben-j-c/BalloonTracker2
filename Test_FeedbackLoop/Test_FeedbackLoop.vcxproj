@@ -163,6 +163,7 @@
   <ItemGroup>
     <ClCompile Include="..\BalloonTracker\PanTiltControl.cpp" />
     <ClCompile Include="..\CameraMath.cpp" />
+    <ClCompile Include="..\VideoReader.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Deploy|x64'">Create</PrecompiledHeader>

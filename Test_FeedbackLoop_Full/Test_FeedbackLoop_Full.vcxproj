@@ -161,6 +161,7 @@
     <ClCompile Include="..\BalloonTracker\PanTiltControl.cpp" />
     <ClCompile Include="..\CameraMath.cpp" />
     <ClCompile Include="..\Network.cpp" />
+    <ClCompile Include="..\VideoReader.cpp" />
     <ClCompile Include="Test_FeedbackLoop_Full.cpp" />
   </ItemGroup>
   <ItemGroup>

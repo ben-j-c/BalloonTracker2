@@ -7,6 +7,7 @@
 #include <PanTiltControl.h>
 #include <CameraMath.h>
 #include <rapidjson/document.h>
+#include <VideoReader.h>
 
 // C/C++
 #include <vector>
@@ -36,6 +37,8 @@
 #include <opencv2/cudafilters.hpp>
 #include <opencv2/cudaimgproc.hpp>
 #include <opencv2/cudawarping.hpp>
+
+#define USE_VIDEOREADER_BEN
 
 using namespace cv;
 using namespace std;
@@ -191,6 +194,60 @@ void processFrames() {
 	}
 }
 
+#ifdef USE_VIDEOREADER_BEN
+
+void consumeBufferedFrames(VideoReader& vid, ImageRes& buff) {
+	using milisec = std::chrono::duration<float, std::milli>;
+	std::chrono::high_resolution_clock timer;
+	auto start = timer.now();
+	vid.readFrame(buff);
+	auto stop = timer.now();
+	auto dt = std::chrono::duration_cast<milisec>(stop - start);
+
+	//We need to drop all the frames we wont use.
+	//We know that the frames pile up before we are able to process them.
+	cout << "INFO: processVideo consuming frames." << endl;
+	while (dt.count() < 1000.0f / 30) {
+		auto start = timer.now();
+		vid.readFrame(buff);
+		auto stop = timer.now();
+		dt = std::chrono::duration_cast<milisec>(stop - start);
+	}
+	cout << "INFO: processVideo consuming frames. DONE" << endl;
+}
+
+/*
+	Continually read frames from the stream and place them in the queue.
+*/
+void processVideo(const string& videoFilename) {
+	cout << "INFO: processVideo starting." << endl;
+	std::chrono::high_resolution_clock timer;
+	using milisec = std::chrono::duration<float, std::milli>;
+	VideoReader vid(videoFilename);
+	ImageRes buff = vid.readFrame();
+	cout << "INFO: processVideo starting. DONE" << endl;
+	consumeBufferedFrames(vid, buff);
+
+	//We need a Mat to be mapped to the buffer we are using to read frames into.
+	Mat frame(vid.getHeight(), vid.getWidth(), CV_8UC3, buff.get());
+	while (keyboard != 'q' && keyboard != 27) {
+		int errorCode = 0;
+		if ((errorCode = vid.readFrame(buff)) < 0) {
+			vid = VideoReader(videoFilename);
+			consumeBufferedFrames(vid, buff);
+			continue;
+		}
+
+		cv::cvtColor(frame, frame, CV_BGR2RGB);
+		frameBuff.insertFrame(frame.clone());
+	}
+	keyboard = 'q';
+	cout << "INFO: processVideo exiting." << endl;
+	return;
+}
+
+#else
+
 void processVideo(string videoFileName) {
 
 	//create the capture object
@@ -214,6 +271,7 @@ void processVideo(string videoFileName) {
 	}
 	capture.release();
 }
+#endif
 
 int main(int argc, char* argv[]) {
 	//print help information

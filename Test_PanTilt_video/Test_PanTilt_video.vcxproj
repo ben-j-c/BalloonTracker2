@@ -159,6 +159,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\BalloonTracker\PanTiltControl.cpp" />
+    <ClCompile Include="..\VideoReader.cpp" />
     <ClCompile Include="Test_PanTilt_video.cpp" />
   </ItemGroup>
   <ItemGroup>
