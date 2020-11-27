@@ -230,6 +230,7 @@ public:
 	SETTINGSENTRY(int, com_baud);
 
 	SETTINGSENTRY(string, camera);
+	SETTINGSENTRY(string, onvifEndpoint);
 	SETTINGSENTRY(uint32_t, camera_framerate);
 
 	SETTINGSENTRY(bool, socket_enable);
