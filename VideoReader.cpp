@@ -67,30 +67,29 @@ ImageRes VideoReader::readFrame() {
 			AVFrame* rgbFrame;
 			uint8_t* rgbBuffer;
 			rgbFrame = av_frame_alloc();
-			int nBytes = av_image_get_buffer_size(AV_PIX_FMT_RGB24, pCodecContext->width, pCodecContext->height, 1);
+			int nBytes = av_image_get_buffer_size(AV_PIX_FMT_BGR24, pCodecContext->width, pCodecContext->height, 1);
 			rgbBuffer = (uint8_t*)av_malloc(nBytes * sizeof(uint8_t));
-			//avpicture_fill((AVPicture*)rgbFrame, rgbBuffer, AV_PIX_FMT_RGB24, pCodecContext->width, pCodecContext->height);
-			av_image_fill_arrays(rgbFrame->data, rgbFrame->linesize, rgbBuffer, AV_PIX_FMT_RGB24, pCodecContext->width, pCodecContext->height, 1);
+			//avpicture_fill((AVPicture*)rgbFrame, rgbBuffer, AV_PIX_FMT_BGR24, pCodecContext->width, pCodecContext->height);
+			av_image_fill_arrays(rgbFrame->data, rgbFrame->linesize, rgbBuffer, AV_PIX_FMT_BGR24, pCodecContext->width, pCodecContext->height, 1);
 
 			sws_scale(swsContext, pFrame->data, pFrame->linesize, 0, pFrame->height, rgbFrame->data, rgbFrame->linesize);
 			av_frame_free(&rgbFrame);
-			return std::shared_ptr<uint8_t>(rgbBuffer,
-				[](uint8_t* buff) { av_free(buff);});
+			return ImageRes(rgbBuffer, height, width);
 		}
 
 		if (avReadFrameResult < 0)
 			closeContext();
 	}
 
-	return nullptr;
+	return ImageRes(nullptr, 0, 0);
 }
 
 int VideoReader::readFrame(ImageRes& rgbBuffer) {
 	int avReadFrameResult = 0;
 	if (pFormatContext && pCodecContext && pPacket) {
 		if (!rgbBuffer) {
-			int nBytes = av_image_get_buffer_size(AV_PIX_FMT_RGB24, pCodecContext->width, pCodecContext->height, 1);
-			rgbBuffer = ImageRes((uint8_t*)av_malloc(nBytes * sizeof(uint8_t)), [](uint8_t* buff) { av_free(buff); });
+			int nBytes = av_image_get_buffer_size(AV_PIX_FMT_BGR24, pCodecContext->width, pCodecContext->height, 1);
+			rgbBuffer = ImageRes((uint8_t*)av_malloc(nBytes * sizeof(uint8_t)), height, width);
 		}
 		
 		while ((avReadFrameResult = av_read_frame(pFormatContext, pPacket)) >= 0) {
@@ -101,9 +100,9 @@ int VideoReader::readFrame(ImageRes& rgbBuffer) {
 
 			AVFrame* rgbFrame;
 			rgbFrame = av_frame_alloc();
-			int nBytes = av_image_get_buffer_size(AV_PIX_FMT_RGB24, pCodecContext->width, pCodecContext->height, 1);
-			//avpicture_fill((AVPicture*)rgbFrame, rgbBuffer.get(), AV_PIX_FMT_RGB24, pCodecContext->width, pCodecContext->height);
-			av_image_fill_arrays(rgbFrame->data, rgbFrame->linesize, rgbBuffer.get(), AV_PIX_FMT_RGB24, pCodecContext->width, pCodecContext->height, 1);
+			int nBytes = av_image_get_buffer_size(AV_PIX_FMT_BGR24, pCodecContext->width, pCodecContext->height, 1);
+			//avpicture_fill((AVPicture*)rgbFrame, rgbBuffer.get(), AV_PIX_FMT_BGR24, pCodecContext->width, pCodecContext->height);
+			av_image_fill_arrays(rgbFrame->data, rgbFrame->linesize, rgbBuffer.get(), AV_PIX_FMT_BGR24, pCodecContext->width, pCodecContext->height, 1);
 
 			sws_scale(swsContext, pFrame->data, pFrame->linesize, 0, pFrame->height, rgbFrame->data, rgbFrame->linesize);
 			av_frame_free(&rgbFrame);
@@ -122,7 +121,7 @@ int VideoReader::readFrame(ImageRes& rgbBuffer) {
 
 int VideoReader::size() const {
 	if(pCodecContext)
-		return av_image_get_buffer_size(AV_PIX_FMT_RGB24, pCodecContext->width, pCodecContext->height, 1);
+		return av_image_get_buffer_size(AV_PIX_FMT_BGR24, pCodecContext->width, pCodecContext->height, 1);
 	return 0;
 }
 
@@ -174,7 +173,7 @@ void VideoReader::openFile(const char* url) {
 		pCodecContext->width,
 		pCodecContext->height,
 		AV_PIX_FMT_YUVJ420P, pCodecContext->width, pCodecContext->height,
-		AV_PIX_FMT_RGB24, 0, 0, 0, 0);
+		AV_PIX_FMT_BGR24, 0, 0, 0, 0);
 
 	width = pCodecContext->width;
 	height = pCodecContext->height;

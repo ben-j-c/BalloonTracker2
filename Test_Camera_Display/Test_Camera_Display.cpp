@@ -123,7 +123,7 @@ void consumeBufferedFrames(VideoReader& vid, ImageRes& buff) {
 /*
 	Continually read frames from the stream and place them in the queue.
 */
-void processVideo(char* videoFilename) {
+void processVideo(const char* videoFilename) {
 	cout << "INFO: processVideo starting." << endl;
 	std::chrono::high_resolution_clock timer;
 	using milisec = std::chrono::duration<float, std::milli>;
@@ -144,7 +144,6 @@ void processVideo(char* videoFilename) {
 			continue;
 		}
 
-		cv::cvtColor(frame, frame, CV_BGR2RGB);
 		frameBuff.insertFrame(frame.clone());
 
 		auto stop = timer.now();

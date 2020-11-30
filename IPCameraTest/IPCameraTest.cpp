@@ -1,11 +1,12 @@
 // IPCameraTest.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 #include "pch.h"
-#include "FrameBuffer.h"
 #include "VideoReader.h"
+#include <CircularBuffer.h>
 #include <SettingsWrapper.h>
 
 #include <vector>
+#include <thread>
 //opencv
 #include "opencv2/imgcodecs.hpp"
 #include "opencv2/imgproc.hpp"
@@ -34,7 +35,7 @@ using namespace cv;
 using namespace std;
 
 // Global variables
-FrameBuffer frameBuff(50);
+CircularBuffer<ImageRes, 50> frameBuff;
 int index_acq = 0;
 int index_proc = 0;
 vector<float> frameTimesImageAcq(10);
@@ -92,7 +93,7 @@ void processFrames() {
 	std::chrono::high_resolution_clock timer;
 	using milisec = std::chrono::duration<float, std::milli>;
 	while (keyboard != 'q' && keyboard != 27) {
-		Mat frame = frameBuff.getReadFrame();
+		Mat frame = frameBuff.peekNext();
 		auto start = timer.now();
 
 		cuda::GpuMat gpuFrame(frame);
@@ -122,6 +123,7 @@ void consumeBufferedFrames(VideoReader& vid, ImageRes& buff) {
 	//We know that the frames pile up before we are able to process them.
 	cout << "INFO: processVideo consuming frames." << endl;
 	while (dt.count() < 1000.0f / 30) {
+		this_thread::sleep_for(milisec(10));
 		auto start = timer.now();
 		vid.readFrame(buff);
 		auto stop = timer.now();
@@ -138,24 +140,19 @@ void processVideo(char* videoFilename) {
 	std::chrono::high_resolution_clock timer;
 	using milisec = std::chrono::duration<float, std::milli>;
 	VideoReader vid(videoFilename);
-	ImageRes buff = vid.readFrame();
 	cout << "INFO: processVideo starting. DONE" << endl;
-	consumeBufferedFrames(vid, buff);
+	consumeBufferedFrames(vid, frameBuff.peekInsert());
 
-	//We need a Mat to be mapped to the buffer we are using to read frames into.
-	Mat frame(vid.getHeight(), vid.getWidth(), CV_8UC3, buff.get());
 	while (keyboard != 'q' && keyboard != 27) {
 		auto start = timer.now();
-		
+		ImageRes& buff = frameBuff.peekInsert();
 		int errorCode = 0;
 		if ((errorCode = vid.readFrame(buff)) < 0) {
 			vid = VideoReader(videoFilename);
 			consumeBufferedFrames(vid, buff);
 			continue;
 		}
-		
-		cv::cvtColor(frame, frame, CV_BGR2RGB);
-		frameBuff.insertFrame(frame.clone());
+		frameBuff.insertDone();
 
 		auto stop = timer.now();
 		float dt = std::chrono::duration_cast<milisec>(stop - start).count();

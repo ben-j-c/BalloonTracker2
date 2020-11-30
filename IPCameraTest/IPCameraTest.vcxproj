@@ -170,6 +170,7 @@
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\CircularBuffer.cpp" />
     <ClCompile Include="..\VideoReader.cpp" />
     <ClCompile Include="FrameBuffer.cpp" />
     <ClCompile Include="IPCameraTest.cpp" />

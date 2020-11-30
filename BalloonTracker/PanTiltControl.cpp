@@ -21,7 +21,6 @@ static void backspace(int n) {
 
 static void delay(int ms) {
 	std::this_thread::sleep_for(std::chrono::milliseconds(ms));
-
 }
 
 /* Write motor positions and perform clamping within min to max (motor_pan_min in settings.json).
@@ -74,7 +73,6 @@ void PTC::shutdown() {
 	PTC::moveHome();
 	delay(500);
 	PTC::disengage();
-	delete ardy;
 }
 
 bool PTC::useSettings(SettingsWrapper& wrap, const std::function<void(void)>& onStart) {

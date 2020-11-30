@@ -11,6 +11,7 @@
 #include <BalloonTrackerGUI.h>
 #include <rapidjson/document.h>
 #include <VideoReader.h>
+#include <ZoomHandler.h>
 
 // C/C++
 #include <vector>
@@ -38,7 +39,7 @@
 #include <opencv2/cudaimgproc.hpp>
 #include <opencv2/cudawarping.hpp>
 
-#define USE_VIDEOREADER_BEN
+//#define USE_VIDEOREADER_BEN
 
 using namespace cv;
 using namespace std;
@@ -56,6 +57,7 @@ SettingsWrapper sw("../settings.json");
 SettingsWrapper sw("./settings.json");
 #endif // _DEBUG
 
+ZoomHandler zm(sw.onvifEndpoint);
 
 bool bSendCoordinates = false;
 bool bCountDownStarted = false;
@@ -85,8 +87,9 @@ void help() {
 		<< endl;
 
 	cout << "Compilation details:" << endl;
-	cout << "When: " << __DATE__ << "at" << __LINE__ << endl;
+	cout << "When: " << __TIMESTAMP__ << endl;
 	cout << "Compiler version: " << __cplusplus << endl;
+	cout << "x64: " << _M_X64 << endl;
 }
 
 void delay(int ms) {
@@ -330,6 +333,7 @@ void consumeBufferedFrames(VideoReader& vid, ImageRes& buff) {
 	//We know that the frames pile up before we are able to process them.
 	cout << "INFO: processVideo consuming frames." << endl;
 	while (dt.count() < 1000.0f / 30) {
+		this_thread::sleep_for(milisec(10));
 		auto start = timer.now();
 		vid.readFrame(buff);
 		auto stop = timer.now();
@@ -341,11 +345,12 @@ void consumeBufferedFrames(VideoReader& vid, ImageRes& buff) {
 /*
 	Continually read frames from the stream and place them in the queue.
 */
-void processVideo(const string& videoFilename) {
+void processVideo(const string& videoFilename, std::function<void(void)> onStart) {
 	cout << "INFO: processVideo starting." << endl;
 	std::chrono::high_resolution_clock timer;
 	using milisec = std::chrono::duration<float, std::milli>;
 	VideoReader vid(videoFilename);
+	onStart();
 	ImageRes buff = vid.readFrame();
 	cout << "INFO: processVideo starting. DONE" << endl;
 	consumeBufferedFrames(vid, buff);
@@ -359,8 +364,6 @@ void processVideo(const string& videoFilename) {
 			consumeBufferedFrames(vid, buff);
 			continue;
 		}
-
-		cv::cvtColor(frame, frame, CV_BGR2RGB);
 		frameBuff.insertFrame(frame.clone());
 	}
 	keyboard = 'q';
