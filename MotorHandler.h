@@ -5,7 +5,7 @@
 
 class MotorHandler {
 public:
-	MotorHandler(SettingsWrapper& s, bool* stop) : sw(s), killSignal(stop) {
+	MotorHandler(SettingsWrapper& s) : sw(s) {
 		pan = sw.motor_tilt_forward;
 		tilt = sw.motor_tilt_forward;
 	}
@@ -16,7 +16,6 @@ public:
 	void setNextTiltDegrees(double t);
 	void addPanDegrees(double p);
 	void addTiltDegrees(double t);
-	void moveXYRelative(const std::pair<double, double>& dir);
 	bool startup(const std::function<void(void)>& onStart);
 	void moveHome();
 	void disengage();
@@ -29,14 +28,17 @@ public:
 
 	~MotorHandler();
 private:
+	std::thread samplingThread;
+
 	//microseconds of PWM
 	int pan, curPan;
 	//microseconds of PWM
 	int tilt, curTilt;
-
+	bool engaged = false;
 	bool killSignal = false;
+	std::function<bool(void)> killPredicate;
 	SerialPort* ardy;
-	void sampleThread();
+	void updatePos();
 	void writePos(int pan, int tilt);
 	void writePosShifted(int pan, int tilt);
 	bool addRotation(double pan, double tilt);

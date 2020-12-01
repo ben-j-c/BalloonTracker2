@@ -35,12 +35,12 @@ double MotorHandler::getCurrentTiltDegrees() const {
 
 void MotorHandler::setNextPanDegrees(double p) {
 	double microseconds = sw.motor_pan_forward + p * sw.motor_pan_factor;
-	pan = (int) clamp((double) sw.motor_pan_min, (double) sw.motor_pan_max, microseconds);
+	pan = clamp<int>(sw.motor_pan_min, sw.motor_pan_max, microseconds);
 }
 
 void  MotorHandler::setNextTiltDegrees(double t) {
 	double microseconds = sw.motor_tilt_forward + t * sw.motor_tilt_factor;
-	tilt = (int)clamp((double)sw.motor_tilt_min, (double)sw.motor_tilt_max, microseconds);
+	tilt = clamp<int>(sw.motor_tilt_min, sw.motor_tilt_max, microseconds);
 }
 
 void MotorHandler::addPanDegrees(double p) {
@@ -76,8 +76,10 @@ bool MotorHandler::startup(const std::function<void(void)>& onStart) {
 	else
 		exit(-1);
 	moveHome();
+	engaged = true;
 	std::cout << "Initial position:" << pan << " " << tilt << std::endl;
 	onStart();
+	samplingThread = std::thread(&MotorHandler::updatePos, this);
 	return true;
 }
 
@@ -100,6 +102,7 @@ void MotorHandler::disengage() {
 				std::cout << "Attempting to read ack again" << std::endl;
 		}
 	}
+	engaged = false;
 }
 
 double MotorHandler::panRange() const {
@@ -127,10 +130,11 @@ double MotorHandler::tiltMax() const {
 }
 
 MotorHandler::~MotorHandler() {
-	killSignal = true;
+	killSignal = false;
+	samplingThread.join();
 }
 
-void MotorHandler::sampleThread() {
+void MotorHandler::updatePos() {
 	constexpr auto updatePeriod = std::chrono::milliseconds(20);
 	auto tNow = timeNow();
 	while (!killSignal) {
@@ -143,7 +147,7 @@ void MotorHandler::sampleThread() {
 	}
 
 	moveHome();
-	delay(50);
+	delay(100);
 	disengage();
 }
 

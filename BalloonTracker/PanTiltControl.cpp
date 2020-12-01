@@ -118,8 +118,7 @@ void PTC::tiltCallback(int value, void*) {
 	writePosShifted(PTC::pan, PTC::tilt);
 }
 
-bool PTC::addRotation(double panDeg, double tiltDeg)
-{
+bool PTC::addRotation(double panDeg, double tiltDeg) {
 	bool returner = true;
 
 	double deltaPan = panDeg * sw.motor_pan_factor;
