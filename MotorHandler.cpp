@@ -64,18 +64,20 @@ bool MotorHandler::startup() {
 		ardy->readSerialPort(readBuffer, BUFF_LEN);
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		if (readBuffer[0] != 'a') {
-			if (i == sw.com_timeout / 100) {
-				std::cerr << "Did not recieve ack from arduino! Stopping subsystem." << std::endl;
+			if (i >= sw.com_timeout / 100) {
+				std::cout << "WARNING: Did not recieve ack from arduino! Stopping subsystem." << std::endl;
 				return false;
 			}
-			else
-				std::cout << "Attempting to read ack again" << std::endl;
+			else if(sw.print_info)
+				std::cout << "INFO: Attempting to read ack again" << std::endl;
 		}
 	}
-	if (readBuffer[0] == 'a')
-		std::cout << "Connection established" << std::endl;
+	if (readBuffer[0] == 'a') {
+		if(sw.print_info)
+			std::cout << "INFO: Connection established" << std::endl;
+	}
 	else
-		exit(-1);
+		return false;
 	moveHome();
 	engaged = true;
 	std::cout << "Initial position:" << pan << " " << tilt << std::endl;

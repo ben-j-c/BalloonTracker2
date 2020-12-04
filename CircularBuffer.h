@@ -29,12 +29,14 @@ public:
 		readIndex = nextIndex(readIndex);
 	}
 
-	int size() {
+	size_t size() {
 		if (insertIndex < readIndex) {
 			return insertIndex + N - readIndex;
 		}
 		return insertIndex - readIndex;
 	}
+
+	size_t capacity() const { return N; };
 
 private:
 	size_t insertIndex;

@@ -268,6 +268,8 @@ public:
 	SETTINGSENTRY(bool, print_coordinates);
 	SETTINGSENTRY(bool, print_rotation);
 	SETTINGSENTRY(bool, print_info);
+	SETTINGSENTRY(bool, print_warnings);
+	SETTINGSENTRY(bool, print_errors);
 
 	SETTINGSENTRY(bool, report_motor_rotation);
 	SETTINGSENTRY(bool, report_perceived_rotation);

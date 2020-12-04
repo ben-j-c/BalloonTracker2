@@ -21,7 +21,6 @@
 #include <stdio.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
-#include <mutex>
 #include <future>
 
 // OpenCV
@@ -39,14 +38,17 @@
 #include <opencv2/cudawarping.hpp>
 
 #define USE_VIDEOREADER_BEN
+#define PRINT_INFO(X) if(sw.print_info) cout << X << std::endl;
+#define PRINT_WARN(X) if(sw.print_warnings) cout << X << std::endl;
+#define PRINT_ERROR(X) if(sw.print_errors) cerr << X << std::endl;
 
 using namespace cv;
 using namespace std;
 
 #ifdef _DEBUG
-SettingsWrapper sw("../settings.json");
+SettingsWrapper sw("../settings2.1.json");
 #else
-SettingsWrapper sw("./settings.json");
+SettingsWrapper sw("./settings2.1.json");
 #endif // _DEBUG
 
 //Global vars and handlers
@@ -117,23 +119,6 @@ void rgChroma(cuda::GpuMat image, std::vector<cuda::GpuMat>& chroma) {
 	chroma[3].clone().convertTo(chroma[3], CV_8U, 1.0 / 3.0);
 }
 
-void countdown() {
-	while (!GUI::bMotorContRunning || !GUI::bImageProcRunning) {
-		delay(10);
-	}
-
-	timeStart = timeNow();
-	while (!bStop) {
-		auto dt = timeNow() - timeStart;
-		if (dt > std::chrono::duration<double, std::milli>(GUI::dCountDown*1000.0)) {
-			if (sw.debug)
-				std::cout << "System started." << std::endl;
-			break;
-		}
-		GUI::dCountDownValue = (double)dt.count() / 1E7;
-	}
-}
-
 void rgChroma(cuda::GpuMat image, std::vector<cuda::GpuMat>& chroma) {
 	cuda::GpuMat i16;
 	std::vector<cuda::GpuMat> colors(3);
@@ -188,12 +173,47 @@ struct FindBalloonResult findBalloon() {
 	Mat temp;
 	blob.download(temp);
 	cv::findNonZero(temp, loc);
+
+	Mat displayFrame;
+	if (sw.show_frame_mask) {
+		blob.download(displayFrame);
+		imshow("blob", displayFrame);
+	}
+	if (sw.show_frame_mask_r) {
+		chroma[0].download(displayFrame);
+		imshow("Mask R", displayFrame);
+	}	
+	if (sw.show_frame_mask_g) {
+		chroma[1].download(displayFrame);
+		imshow("Mask G", displayFrame);
+	}	
+	if (sw.show_frame_mask_s) {
+		chroma[3].download(displayFrame);
+		imshow("Mask S", displayFrame);
+	}
+		
+
 	if (loc.size() >= 50) {
 		cv::Scalar mean = cv::mean(loc);
 		double pxRadius = sqrt(loc.size() / M_PI);
 		double pxX = mean[0] / sw.image_resize_factor;
 		double pxY = mean[1] / sw.image_resize_factor;
 		double area = loc.size() / (sw.image_resize_factor * sw.image_resize_factor);
+
+		if (sw.show_frame_rgb) {
+			resized.download(displayFrame);
+			if (sw.show_frame_track) {
+				cv::drawMarker(displayFrame, cv::Point2i((int)(mean[0] + pxRadius), (int)mean[1]),
+					cv::Scalar(255, 0, 0, 0), 0, 10, 1);
+				cv::drawMarker(displayFrame, cv::Point2i((int)(mean[0] - pxRadius), (int)mean[1]),
+					cv::Scalar(255, 0, 0, 0), 0, 10, 1);
+				cv::drawMarker(displayFrame, cv::Point2i((int)mean[0], (int)(mean[1] + pxRadius)),
+					cv::Scalar(255, 0, 0, 0), 0, 10, 1);
+				cv::drawMarker(displayFrame, cv::Point2i((int)mean[0], (int)(mean[1] - pxRadius)),
+					cv::Scalar(255, 0, 0, 0), 0, 10, 1);
+			}
+			imshow("Image", displayFrame);
+		}
 
 		return { pxX, pxY, true, false };
 	}
@@ -227,10 +247,12 @@ void stateChange() {
 		if (!GUI::bImageProcRunning && !bImageProcStarting) {
 			//Start image processing
 			bImageProcStarting = true;
+			PRINT_INFO("INFO: Image processing starting.");
 			vidThread = std::thread(processVideo, sw.camera, []() {
 				GUI::bImageProcRunning = true;
 				GUI::bStartImageProcRequest = false;
 				bImageProcStarting = false;
+				PRINT_INFO("INFO: Image processing starting. DONE");
 			});
 		}
 		else if (GUI::bImageProcRunning)
@@ -240,11 +262,13 @@ void stateChange() {
 		if (GUI::bImageProcRunning && !bImageProcStopping) {
 			//Stop image processing
 			bImageProcStopping = true;
+			PRINT_INFO("INFO: Image processing stopping.");
 			vidStopThread = std::thread([]() {
 				vidThread.join();
 				GUI::bImageProcRunning = false;
 				GUI::bStopImageProcRequest = false;
 				bImageProcStopping = false;
+				PRINT_INFO("INFO: Image processing stopping. DONE");
 			});
 		}
 		else if (!GUI::bImageProcRunning)
@@ -255,11 +279,13 @@ void stateChange() {
 		if (!GUI::bMotorContRunning && !bMotorStarting) {
 			//Start motor control
 			bMotorStarting = true;
+			PRINT_INFO("INFO: Motor connection starting.");
 			motorsThread = std::thread([]() {
 				motors.startup();
 				GUI::bMotorContRunning = true;
 				GUI::bStartMotorContRequest = false;
 				bMotorStarting = false;
+				PRINT_INFO("INFO: Motor connection starting. DONE");
 			});
 		}
 		else if (GUI::bMotorContRunning)
@@ -269,6 +295,7 @@ void stateChange() {
 		if (GUI::bMotorContRunning && !bMotorStopping) {
 			//Stop motor control
 			bMotorStopping = true;
+			PRINT_INFO("INFO: Motor connection terminating.");
 			motorStopThread = std::thread([]() {
 				motorsThread.join();
 				motors.moveHome();
@@ -277,6 +304,7 @@ void stateChange() {
 				GUI::bMotorContRunning = false;
 				GUI::bStopMotorContRequest = false;
 				bMotorStopping = false;
+				PRINT_INFO("INFO: Motor connection terminating. DONE");
 			});
 		}
 		else if (!GUI::bMotorContRunning)
@@ -286,16 +314,20 @@ void stateChange() {
 	if (GUI::bStartSystemRequest) {
 		if (!GUI::bSystemRunning && !bSystemStarting) {
 			bSystemStarting = true;
+			PRINT_INFO("INFO: System starting with countdown.");
 			countdownThread = std::thread([]() {
-				while (!GUI::bMotorContRunning || !GUI::bImageProcRunning) delay(10);
+				while (!GUI::bMotorContRunning || !GUI::bImageProcRunning) delay(1);
 				countdownHandler();
 				GUI::bSystemRunning = true;
 				GUI::bStartSystemRequest = false;
 				bSystemStarting = false;
+				PRINT_INFO("INFO: System starting with countdown. DONE");
 				delay(1000);
+				PRINT_INFO("INFO: Zooming in.");
 				zoom.zoomIn();
 				delay(4000);
 				zoom.stop();
+				PRINT_INFO("INFO: Zooming in. DONE");
 			});
 		}
 		else if (GUI::bSystemRunning)
@@ -304,14 +336,19 @@ void stateChange() {
 	else if (GUI::bStopSystemRequest) {
 		if (GUI::bSystemRunning && !bSystemStopping) {
 			bSystemStopping = true;
+			PRINT_INFO("INFO: System stopping.");
 			countdownStopThread = std::thread([]() {
 				countdownThread.join();
+				PRINT_INFO("INFO: Zooming out.");
 				zoom.zoomOut();
 				delay(4000);
 				zoom.stop();
+				PRINT_INFO("INFO: Zooming out. DONE");
+				while (GUI::bMotorContRunning || GUI::bImageProcRunning) delay(10);
 				GUI::bSystemRunning = false;
 				GUI::bStopSystemRequest = false;
 				bSystemStopping = false;
+				PRINT_INFO("INFO: System stopping. DONE");
 			});
 		}
 		else if (!GUI::bSystemRunning)
@@ -323,7 +360,7 @@ void controlLoop() {
 	static uint64_t frameCount = 0;
 	while (!bStop) {
 		stateChange();
-		FindBalloonResult balPos;
+		FindBalloonResult balPos{0, 0, false, false};
 		if (GUI::bImageProcRunning) {
 			balPos = findBalloon();
 		}
@@ -347,12 +384,18 @@ void controlLoop() {
 				data.index = frameCount;
 				data.mPan = motors.getCurrentPanDegrees();
 				data.mTilt = motors.getCurrentTiltDegrees();
+				motors.addPanDegrees(balPos.x - data.mPan);
 			}
 		}
 		else {
 			frameCount = 0;
 		}
-
+		keyboard = waitKey(1);
+		if (keyboard == 'q' || keyboard == 27) {
+			GUI::bStopImageProcRequest = true;
+			GUI::bStopMotorContRequest = true;
+			GUI::bStopSystemRequest = true;
+		}
 	}
 }
 
@@ -384,15 +427,25 @@ void consumeBufferedFrames(VideoReader& vid, ImageRes& buff) {
 	Continually read frames from the stream and place them in the queue.
 */
 void processVideo(const string& videoFilename, const std::function<void()>& onStart ) {
-	cout << "INFO: processVideo starting." << endl;
+	PRINT_INFO("INFO: processVideo starting.");
 	vid = VideoReader(videoFilename);
-	cout << "INFO: processVideo starting. DONE" << endl;
+	PRINT_INFO("INFO: processVideo starting. DONE");
 	consumeBufferedFrames(vid, frameBuff.peekInsert());
 	onStart();
 	while (!bStop && GUI::bStopImageProcRequest ) {
+		if (frameBuff.size() == frameBuff.capacity() - 1) {
+			if (sw.print_warnings)
+				cout << "WARNING: Dropping frames due to full frame buffer!" << std::endl;
+			static ImageRes frameDrop;
+			vid.readFrame(frameDrop);
+			delay(1);
+			continue;
+		}
 		ImageRes& buff = frameBuff.peekInsert();
 		int errorCode = 0;
 		if ((errorCode = vid.readFrame(buff)) < 0) {
+			if (sw.print_warnings)
+				cout << "WARNING: Video stream dropped! Attempting re-connection." << std::endl;
 			vid = VideoReader(videoFilename);
 			consumeBufferedFrames(vid, buff);
 			continue;
@@ -400,7 +453,8 @@ void processVideo(const string& videoFilename, const std::function<void()>& onSt
 		frameBuff.insertDone();
 	}
 	keyboard = 'q';
-	cout << "INFO: processVideo exiting." << endl;
+	if(sw.print_info)
+		cout << "INFO: processVideo exiting." << endl;
 	return;
 }
 
@@ -410,8 +464,7 @@ void countdownHandler() {
 	while (!GUI::bStopSystemRequest && !bStop) {
 		auto dt = timeStart - timeNow();
 		if (dt > std::chrono::duration<double, std::milli>(GUI::dCountDown*1000.0)) {
-			if (sw.debug)
-				std::cout << "INFO: Count down ended." << std::endl;
+			PRINT_INFO("INFO: Count down ended.");
 			break;
 		}
 		GUI::dCountDownValue = (double)dt.count() / 1E7;
@@ -425,8 +478,10 @@ int main(int argc, char* argv[]) {
 		help();
 	//check for the input parameter correctness
 	if (argc > 1) {
-		cerr << "Incorrect input list" << endl;
-		cerr << "exiting..." << endl;
+		if (sw.print_errors) {
+			cerr << "Incorrect input list" << endl;
+			cerr << "exiting..." << endl;
+		}
 		return EXIT_FAILURE;
 	}
 
@@ -436,6 +491,12 @@ int main(int argc, char* argv[]) {
 
 	//On exit wait for reading thread
 	result.get();
+	vidThread.join();
+	vidStopThread.join();
+	motorsThread.join();
+	motorStopThread.join();
+	countdownThread.join();
+	countdownStopThread.join();
 	bStop = true;
 
 	//destroy GUI windows

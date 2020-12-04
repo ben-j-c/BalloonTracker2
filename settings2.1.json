@@ -39,7 +39,7 @@
   "print_rotation": true,
   "print_info": true,
   "print_warnings": true,
-  "print_errors": true,
+  "print_errors":  true,
   "report_motor_rotation": true,
   "report_perceived_rotation": true,
   "report_pose_estimation": true,
