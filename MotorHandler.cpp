@@ -1,4 +1,5 @@
 #include "MotorHandler.h"
+#include <include/SerialPort.hpp>
 
 #include <thread>
 #include <string>
@@ -51,7 +52,7 @@ void MotorHandler::addTiltDegrees(double t) {
 	setNextPanDegrees(getCurrentTiltDegrees() + t);
 }
 
-bool MotorHandler::startup(const std::function<void(void)>& onStart) {
+bool MotorHandler::startup() {
 	char readBuffer[BUFF_LEN] = { '\0' };
 	string comPort = "\\\\.\\COM";
 	comPort += std::to_string(sw.com_port);
@@ -78,7 +79,6 @@ bool MotorHandler::startup(const std::function<void(void)>& onStart) {
 	moveHome();
 	engaged = true;
 	std::cout << "Initial position:" << pan << " " << tilt << std::endl;
-	onStart();
 	samplingThread = std::thread(&MotorHandler::updatePos, this);
 	return true;
 }
@@ -134,7 +134,7 @@ MotorHandler::~MotorHandler() {
 	samplingThread.join();
 }
 
-void MotorHandler::updatePos() {
+void MotorHandler::updatePosRepeat() {
 	constexpr auto updatePeriod = std::chrono::milliseconds(20);
 	auto tNow = timeNow();
 	while (!killSignal) {
@@ -149,6 +149,12 @@ void MotorHandler::updatePos() {
 	moveHome();
 	delay(100);
 	disengage();
+}
+
+void MotorHandler::updatePos() {
+	writePos(pan, tilt);
+	curPan = pan;
+	curTilt = tilt;
 }
 
 void MotorHandler::writePos(int pan, int tilt) {

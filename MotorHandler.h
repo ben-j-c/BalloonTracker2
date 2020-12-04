@@ -1,6 +1,5 @@
 #pragma once
 #include <SettingsWrapper.h>
-#include <SerialPort.hpp>
 #include <functional>
 
 class MotorHandler {
@@ -16,7 +15,7 @@ public:
 	void setNextTiltDegrees(double t);
 	void addPanDegrees(double p);
 	void addTiltDegrees(double t);
-	bool startup(const std::function<void(void)>& onStart);
+	bool startup();
 	void moveHome();
 	void disengage();
 	double panRange() const;
@@ -36,8 +35,8 @@ private:
 	int tilt, curTilt;
 	bool engaged = false;
 	bool killSignal = false;
-	std::function<bool(void)> killPredicate;
-	SerialPort* ardy;
+	class SerialPort* ardy;
+	void updatePosRepeat();
 	void updatePos();
 	void writePos(int pan, int tilt);
 	void writePosShifted(int pan, int tilt);

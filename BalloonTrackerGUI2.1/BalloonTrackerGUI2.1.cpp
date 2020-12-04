@@ -43,8 +43,7 @@
 
 namespace GUI {
 	struct DataPoint {
-		double x, y, z;
-		double mPan, mTilt, pPan, pTilt;
+		double mPan, mTilt;
 		uint64_t index;
 	};
 
@@ -64,11 +63,8 @@ namespace GUI {
 	__declspec(dllexport) bool bMotorContRunning = false;
 	__declspec(dllexport) bool bStopMotorContRequest = false;
 
-
-	__declspec(dllexport) double dBalloonCirc = 37.5;
 	__declspec(dllexport) double dCountDown = 30;
 	__declspec(dllexport) double dCountDownValue;
-	__declspec(dllexport) float fBearing = 0;
 }
 
 namespace Disp {
@@ -78,9 +74,8 @@ namespace Disp {
 	int currentLine = 0;
 	std::vector<float> mPanData;
 	std::vector<float> mTiltData;
-	std::vector<float> pPanData;
-	std::vector<float> pTiltData;
-	std::vector<float> altitudeData;
+	std::vector<std::pair<std::string, std::string>> keyValuePairs;
+	std::vector<std::pair<std::string, std::string>> keyValueLabels;
 }
 
 
@@ -224,24 +219,17 @@ static void saveData(const std::string& fileName, SettingsWrapper &sw) {
 	if (!out.is_open())
 		return;
 
+	for (auto& kv: Disp::keyValuePairs) {
+		out << kv.first.data() << "," << kv.second.data() << "," << std::endl;
+	}
+
 	if (sw.report_frame_number) {
 		out << "Frame";
 	}
 	else {
 		out << "Time";
 	}
-	if (sw.report_pose_estimation) {
-		out << ",X,Y,Z";
-	}
-	if (sw.report_altitude_estimation) {
-		out << ",Altitude";
-	}
-	if (sw.report_motor_rotation) {
-		out << ",mPan,mTilt";
-	}
-	if (sw.report_perceived_rotation) {
-		out << ",pPan,pTilt";
-	}
+	out << ",mPan,mTilt";
 
 	for (int i = 0; i < data.size(); i++) {
 		std::lock_guard<std::mutex> lck(dataLock);
@@ -250,19 +238,10 @@ static void saveData(const std::string& fileName, SettingsWrapper &sw) {
 			out << data[i].index;
 		}
 		else {
-			out << (double) data[i].index / sw.camera_framerate;
-		}
-		if (sw.report_pose_estimation) {
-			out << "," << data[i].x << "," << data[i].y << "," << data[i].z;
-		}
-		if (sw.report_altitude_estimation) {
-			out << "," << data[i].y;
+			out << (double)data[i].index / sw.camera_framerate;
 		}
 		if (sw.report_motor_rotation) {
 			out << "," << data[i].mPan << "," << data[i].mTilt;
-		}
-		if (sw.report_perceived_rotation) {
-			out << "," << data[i].pPan << "," << data[i].pTilt;
 		}
 	}
 }
@@ -356,82 +335,16 @@ void clearData() {
 	std::lock_guard<std::mutex> lck(GUI::dataLock);
 
 	GUI::data.clear();
-	Disp::altitudeData.clear();
 	Disp::currentLine = 0;
 	Disp::iFrameCount = 0;
 	Disp::lines.clear();
 	Disp::linesPtr.clear();
 	Disp::mPanData.clear();
 	Disp::mTiltData.clear();
-	Disp::pPanData.clear();
-	Disp::pTiltData.clear();
 }
 
 void loadData(const string& fileName, SettingsWrapper& sw) {
-	clearData();
-	std::lock_guard<std::mutex> lck(GUI::dataLock);
-
-	std::ifstream f(fileName);
-	if (!f.is_open()) {
-		fprintf(stderr, "Can't open file \"%s\"", fileName.c_str());
-	}
-
-	std::vector<char> line(512);
-	{
-		
-		f.getline(line.data(), 512);
-		auto cols = split(string(line.data()), ',');
-
-		if (cols.size() > 0) {
-			sw.report_frame_number = cols[0].compare("Frame") == 0;
-			sw.report_altitude_estimation = containsString(cols, "Altitude");
-			sw.report_motor_rotation = containsString(cols, "mPan") && containsString(cols, "mTilt");
-			sw.report_perceived_rotation = containsString(cols, "pPan") && containsString(cols, "pTilt");
-			sw.report_pose_estimation = containsString(cols, "X") && containsString(cols, "Y") && containsString(cols, "Z");
-		}
-		else {
-			return;
-		}
-
-	}
-
 	
-	for (size_t i = 0; f.good(); i++) {
-		data.emplace_back();
-		f.getline(line.data(), 512);
-		auto cols = split(string(line.data()), ',');
-		size_t idx = 0;
-
-		try {
-			if (sw.report_frame_number) {
-				data[i].index = std::stoull(cols[idx++]);
-			}
-			else {
-				data[i].index = (uint64_t) round(std::stod(cols[idx++])*sw.camera_framerate);
-			}
-			if (sw.report_pose_estimation) {
-				data[i].x = std::stod(cols[idx++]);
-				data[i].y = std::stod(cols[idx++]);
-				data[i].z = std::stod(cols[idx++]);
-			}
-			if (sw.report_altitude_estimation) {
-				data[i].y = std::stod(cols[idx++]);
-			}
-			if (sw.report_motor_rotation) {
-				data[i].mPan = std::stod(cols[idx++]);
-				data[i].mTilt = std::stod(cols[idx++]);
-			}
-			if (sw.report_perceived_rotation) {
-				data[i].pPan = std::stod(cols[idx++]);
-				data[i].pTilt = std::stod(cols[idx++]);
-			}
-		}
-		catch (std::exception e) {
-			printf("%s\n", e.what());
-			printf("Can't read data file due to unexpected format.");
-			return;
-		}
-	}
 }
 
 
@@ -536,8 +449,8 @@ void drawSettings(SettingsWrapper& sw) {
 	if (ImGui::CollapsingHeader("Image processing")) {
 		if (bStartImageProcRequest || bImageProcRunning)
 			ImGui::TextColored({ 1,0,0,1 }, "Some settings can't be changed while some systems are running.");
-		int RGS[3] = { (int) sw.thresh_red, (int) sw.thresh_green, (int) sw.thresh_s };
-		float resizeFac = (float) sw.image_resize_factor;
+		int RGS[3] = { (int)sw.thresh_red, (int)sw.thresh_green, (int)sw.thresh_s };
+		float resizeFac = (float)sw.image_resize_factor;
 
 		ImGui::SliderInt3("RGS threshold", RGS, 0, 255);
 		ImGui::SameLine(); HelpMarker("Normalized red, green, and brightness thresholds.");
@@ -619,19 +532,27 @@ void drawSettings(SettingsWrapper& sw) {
 	}
 
 	if (ImGui::CollapsingHeader("CSV generation")) {
-		ImGui::Columns(1, nullptr, false);
-		ImGui::Text("Choose values to be reported in resultant CSV files.");
-		ImGui::Checkbox("Save raw motor rotation information", &sw.report_motor_rotation);
-		ImGui::SameLine(); HelpMarker("Save the rotation of the motors for each data point.");
-		ImGui::Checkbox("Save perceived balloon rotation", &sw.report_perceived_rotation);
-		ImGui::SameLine(); HelpMarker("Save the compounded motor rotation and visual rotation.");
-		ImGui::Checkbox("Save pose estimation", &sw.report_pose_estimation);
-		ImGui::SameLine(); HelpMarker("Save the estimated (x,y,z) location of the balloon");
-		ImGui::Checkbox("Save altitude estimation", &sw.report_altitude_estimation);
-		ImGui::SameLine(); HelpMarker("Save the estimated altitude of the balloon");
-		ImGui::Checkbox("Save frame numbers", &sw.report_frame_number);
-		ImGui::SameLine(); HelpMarker("Each data point will have the frame number rather than\nthe closest approximation to when the frame came in.");
-		ImGui::Columns(1, nullptr, false);
+		ImGui::Columns(2,nullptr,false);
+		ImGui::Button("New key->value");
+		if (ImGui::IsItemClicked()) {
+			int i = Disp::keyValueLabels.size();
+			Disp::keyValuePairs.push_back({ std::string(512, '\0'), std::string(512, '\0') });
+			Disp::keyValueLabels.push_back({ std::string("Key ") + std::to_string(i + 1), std::string("Value ") + std::to_string(i + 1) });
+		}
+		ImGui::NextColumn();
+		ImGui::Button("Remove key->value");
+		if (ImGui::IsItemClicked() && !Disp::keyValuePairs.empty()) {
+			Disp::keyValuePairs.pop_back();
+		}
+		ImGui::NextColumn();
+		for (int i = 0; i < Disp::keyValuePairs.size(); i++) {
+			auto& kv = Disp::keyValuePairs[i];
+			auto& kvl = Disp::keyValueLabels[i];
+			ImGui::InputText(kvl.first.c_str(), (char*)kv.first.c_str(), 512);
+			ImGui::NextColumn();
+			ImGui::InputText(kvl.second.c_str(), (char*)kv.second.c_str(), 512);
+			ImGui::NextColumn();
+		}
 	}
 }
 
@@ -645,14 +566,10 @@ void drawSettings(SettingsWrapper& sw) {
 
 void drawControls(SettingsWrapper& sw) {
 	ImGui::Columns(2, nullptr, false);
-	ImGui::InputDouble("Balloon circumference", &dBalloonCirc, 0, 0, "%.2f cm");
-	ImGui::NextColumn();
 	ImGui::InputDouble("Countdown", &dCountDown, 0, 0, "%.0f seconds");
 	ImGui::NextColumn();
-	ImGui::SliderFloat("Bearing", &fBearing, 0, 360, "%.1f degrees");
-	ImGui::NextColumn();
-	ImGui::ProgressBar((float) (dCountDownValue / dCountDown), {-1, 0},
-		(std::to_string((int) (dCountDown - dCountDownValue)) + " seconds").c_str());
+	ImGui::ProgressBar((float)(dCountDownValue / dCountDown), { -1, 0 },
+		(std::to_string((int)(dCountDown - dCountDownValue)) + " seconds").c_str());
 	ImGui::Columns(1, nullptr, false);
 
 	ImGui::Columns(4, nullptr, false);
@@ -677,7 +594,7 @@ void drawControls(SettingsWrapper& sw) {
 		bStopMotorContRequest = true;
 	}
 	ImGui::NextColumn();
-	ImGui::TextColored(statusColour(bStartSystemRequest, bSystemRunning, bStopSystemRequest) , "%7s",
+	ImGui::TextColored(statusColour(bStartSystemRequest, bSystemRunning, bStopSystemRequest), "%7s",
 		statusText(bStartSystemRequest, bSystemRunning, bStopSystemRequest).data());
 	ImGui::NextColumn();
 
@@ -732,26 +649,26 @@ void drawRightPanel(SettingsWrapper &sw) {
 	if (lines.size() < 1) {
 		lines.emplace_back(new char[512]);
 		linesPtr.emplace_back(lines[0].get());
-		sprintf(lines[0].get(), "%15s %15s %15s %15s", "Frame#", "Pan", "Tilt", "Altitude");
+		sprintf(lines[0].get(), "%15s %15s %15s",
+			sw.report_frame_number? "Frame#" :"Time",
+			"Pan",
+			"Tilt");
 	}
-	for(size_t i = lines.size() - 1; i < data.size(); i++) {
+	for (size_t i = lines.size() - 1; i < data.size(); i++) {
 		std::lock_guard<std::mutex> lck(dataLock);
 		lines.emplace_back(new char[512]);
 		char* last = lines[lines.size() - 1].get();
-		sprintf(last, "%15llu %15.2f %15.2f %15.2f", data[i].index, data[i].mPan, data[i].mTilt, data[i].y);
+		sprintf(last, "%15llu %15.2f %15.2f", data[i].index, data[i].mPan, data[i].mTilt);
 		linesPtr.emplace_back(last);
-		mPanData.push_back((float) data[i].mPan);
-		mTiltData.push_back((float) data[i].mTilt);
-		pPanData.push_back((float) data[i].pPan);
-		pTiltData.push_back((float) data[i].pTilt);
-		altitudeData.push_back((float) data[i].y);
+		mPanData.push_back((float)data[i].mPan);
+		mTiltData.push_back((float)data[i].mTilt);
 	}
 
 	static bool updateGraphs = true;
 	static int indexA = 0, indexB = 0;
-	int dataSize = altitudeData.size();
+	int dataSize = mPanData.size();
 	if (updateGraphs) {
-		indexB = altitudeData.size()-1;
+		indexB = mPanData.size() - 1;
 	}
 
 
@@ -761,7 +678,7 @@ void drawRightPanel(SettingsWrapper &sw) {
 	float gWidth = ImGui::GetWindowSize().x;
 	ImGui::Text("Collected data:");
 	ImGui::SetNextItemWidth(gWidth*0.985f);
-	ImGui::ListBox("", &currentLine, linesPtr.data(), (int) lines.size(), 7);
+	ImGui::ListBox("", &currentLine, linesPtr.data(), (int)lines.size(), 7);
 
 	ImGui::Separator();
 
@@ -769,21 +686,10 @@ void drawRightPanel(SettingsWrapper &sw) {
 	ImGui::PlotLines("", mPanData.data() + indexA, indexB - indexA, 0, "", -90, 90, { gWidth , gHeight });
 	ImGui::Text("Motor Tilt (degrees):"); ImGui::SameLine(); HelpMarker("Physical rotation of the tilt motor.");
 	ImGui::PlotLines("", mTiltData.data() + indexA, indexB - indexA, 0, "", -90, 90, { gWidth, gHeight });
-	float maxAltitude = 0;
-	if (altitudeData.size() != 0)
-		maxAltitude = *std::max_element(altitudeData.begin() + indexA, altitudeData.begin() + indexB);
 
-	ImGui::Text("Balloon Altitude (mm):"); ImGui::SameLine(); HelpMarker("Perceived altitude of the balloon.");
-	ImGui::PlotLines("", altitudeData.data() + indexA, indexB - indexA, 0, "", 0, maxAltitude, { gWidth, gHeight });
-	ImGui::Text("Perceived Pan (degrees):"); ImGui::SameLine();
-	HelpMarker("Perceived bearing of the balloon considering all variables.");
-	ImGui::PlotLines("", pPanData.data() + indexA, indexB - indexA, 0, "", -90, 90, { gWidth, gHeight });
-	ImGui::Text("Perceived Tilt (degrees):"); ImGui::SameLine();
-	HelpMarker("Perceived bearing of the balloon considering all variables.");
-	ImGui::PlotLines("", pTiltData.data() + indexA, indexB - indexA, 0, "", -90, 90, { gWidth, gHeight });
 	ImGui::Checkbox("Scrolling graphs", &updateGraphs);
 	ImGui::SliderInt("Display range min", &indexA, 0, indexB);
-	ImGui::SliderInt("Display range max", &indexB, indexA, dataSize-1);
+	ImGui::SliderInt("Display range max", &indexB, indexA, dataSize - 1);
 
 	iFrameCount++;
 }
@@ -869,7 +775,7 @@ namespace GUI {
 							enforceExtension(sFileName, ".CSV");
 							clearData();
 						}
-							
+
 					}
 					if (ImGui::BeginMenu("Save data")) {
 						if (ImGui::MenuItem("Save As")) {
@@ -896,7 +802,7 @@ namespace GUI {
 						ImGui::EndMenu();
 					}
 					if (ImGui::MenuItem("Load data", "", nullptr,
-							!(GUI::bStartImageProcRequest
+						!(GUI::bStartImageProcRequest
 							|| GUI::bStartMotorContRequest
 							|| GUI::bStartSystemRequest
 							|| GUI::bImageProcRunning
@@ -917,7 +823,7 @@ namespace GUI {
 						}
 					}
 					if (ImGui::MenuItem("Load settings", "", nullptr,
-							!(GUI::bStartImageProcRequest
+						!(GUI::bStartImageProcRequest
 							|| GUI::bStartMotorContRequest
 							|| GUI::bStartSystemRequest
 							|| GUI::bImageProcRunning
@@ -1009,9 +915,7 @@ int main() {
 		double a = (90 * sin((i / 1) / 100.0*3.14159*2.0));
 		double b = (90 * cos((i / 1) / 100.0*3.14159*2.0));
 		double c = (i*i / 10000.0*(a / 180.0 + 0.5));
-		data.push_back(GUI::DataPoint{ 0.0, 1.0, 2.0,
-			a, b, a*b / 90.0f, -a * b / 90.0f,
-			(uint64_t)i });
+		data.push_back(GUI::DataPoint{ a, b, (uint64_t) i });
 		std::this_thread::sleep_for(std::chrono::milliseconds(20));
 	}
 
