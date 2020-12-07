@@ -26,6 +26,8 @@ public:
 	double tiltMax() const;
 	void updatePos();
 
+	bool good() const { return engaged; };
+
 	~MotorHandler();
 private:
 	std::thread samplingThread;

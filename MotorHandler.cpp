@@ -57,8 +57,9 @@ bool MotorHandler::startup() {
 	string comPort = "\\\\.\\COM";
 	comPort += std::to_string(sw.com_port);
 	ardy = new SerialPort(comPort.data(), sw.com_baud);
-	if (!ardy->isConnected())
-		return false;
+	if (!ardy->isConnected()) {
+		return engaged = false;
+	}
 	ardy->writeSerialPort("b", 1);
 	for (int i = 0; readBuffer[0] != 'a'; i++) {
 		ardy->readSerialPort(readBuffer, BUFF_LEN);
@@ -66,7 +67,7 @@ bool MotorHandler::startup() {
 		if (readBuffer[0] != 'a') {
 			if (i >= sw.com_timeout / 100) {
 				std::cout << "WARNING: Did not recieve ack from arduino! Stopping subsystem." << std::endl;
-				return false;
+				return engaged = false;
 			}
 			else if(sw.print_info)
 				std::cout << "INFO: Attempting to read ack again" << std::endl;
@@ -77,11 +78,11 @@ bool MotorHandler::startup() {
 			std::cout << "INFO: Connection established" << std::endl;
 	}
 	else
-		return false;
+		return engaged = false;
 	moveHome();
 	engaged = true;
 	std::cout << "Initial position:" << pan << " " << tilt << std::endl;
-	samplingThread = std::thread(&MotorHandler::updatePos, this);
+	//samplingThread = std::thread(&MotorHandler::updatePos, this);
 	return true;
 }
 
@@ -163,8 +164,6 @@ void MotorHandler::updatePos() {
 void MotorHandler::writePos(int pan, int tilt) {
 	pan = (int)max(min(pan, sw.motor_pan_max), sw.motor_pan_min);
 	tilt = (int)max(min(tilt, sw.motor_tilt_max), sw.motor_tilt_min);
-	pan = (int)(pan - sw.motor_pan_min);
-	tilt = (int)(tilt - sw.motor_tilt_min);
 
 	uint8_t writeBuffer[5];
 	writeBuffer[0] = 'p';
