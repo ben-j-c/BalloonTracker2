@@ -64,6 +64,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BalloonTrackerGUI2.1", "Bal
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test_GUI_Application_2.1", "Test_GUI_Application_2.1\Test_GUI_Application_2.1.vcxproj", "{70E14BBE-623F-46E7-AB37-05651BDB137F}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test_PanTilt_Zoom", "Test_PanTilt_Zoom\Test_PanTilt_Zoom.vcxproj", "{AFDBCB83-B141-400A-B978-F2A3E888B182}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -386,6 +388,18 @@ Global
 		{70E14BBE-623F-46E7-AB37-05651BDB137F}.Release|x64.Build.0 = Release|x64
 		{70E14BBE-623F-46E7-AB37-05651BDB137F}.Release|x86.ActiveCfg = Release|Win32
 		{70E14BBE-623F-46E7-AB37-05651BDB137F}.Release|x86.Build.0 = Release|Win32
+		{AFDBCB83-B141-400A-B978-F2A3E888B182}.Debug|x64.ActiveCfg = Debug|x64
+		{AFDBCB83-B141-400A-B978-F2A3E888B182}.Debug|x64.Build.0 = Debug|x64
+		{AFDBCB83-B141-400A-B978-F2A3E888B182}.Debug|x86.ActiveCfg = Debug|Win32
+		{AFDBCB83-B141-400A-B978-F2A3E888B182}.Debug|x86.Build.0 = Debug|Win32
+		{AFDBCB83-B141-400A-B978-F2A3E888B182}.Deploy|x64.ActiveCfg = Debug|x64
+		{AFDBCB83-B141-400A-B978-F2A3E888B182}.Deploy|x64.Build.0 = Debug|x64
+		{AFDBCB83-B141-400A-B978-F2A3E888B182}.Deploy|x86.ActiveCfg = Debug|Win32
+		{AFDBCB83-B141-400A-B978-F2A3E888B182}.Deploy|x86.Build.0 = Debug|Win32
+		{AFDBCB83-B141-400A-B978-F2A3E888B182}.Release|x64.ActiveCfg = Release|x64
+		{AFDBCB83-B141-400A-B978-F2A3E888B182}.Release|x64.Build.0 = Release|x64
+		{AFDBCB83-B141-400A-B978-F2A3E888B182}.Release|x86.ActiveCfg = Release|Win32
+		{AFDBCB83-B141-400A-B978-F2A3E888B182}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
