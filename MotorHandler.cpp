@@ -133,7 +133,8 @@ double MotorHandler::tiltMax() const {
 
 MotorHandler::~MotorHandler() {
 	killSignal = false;
-	samplingThread.join();
+	if(samplingThread.joinable())
+		samplingThread.join();
 }
 
 void MotorHandler::updatePosRepeat() {

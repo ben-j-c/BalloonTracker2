@@ -7,25 +7,27 @@ class CircularBuffer {
 public:
 
 
-	T& peekInsert() {
+	T& back() {
 		while (nextIndex(insertIndex) == readIndex)
 			std::this_thread::yield();
 		return buffer[insertIndex];
 	}
 
-	void insertDone() {
+	void push_back() {
 		while (nextIndex(insertIndex) == readIndex)
 			std::this_thread::yield();
 		insertIndex = nextIndex(insertIndex);
 	}
 
-	T& peekNext() {
+	T& front() {
 		while (insertIndex == readIndex)
 			std::this_thread::yield();
 		return buffer[readIndex];
 	}
 
-	void readDone() {
+	void pop_front() {
+		while (insertIndex == readIndex)
+			std::this_thread::yield();
 		readIndex = nextIndex(readIndex);
 	}
 
@@ -43,7 +45,7 @@ private:
 	size_t readIndex;
 	std::array<T, N> buffer;
 
-	inline int nextIndex(int idx) const {
+	inline size_t nextIndex(size_t idx) const {
 		return (idx + 1) % N;
 	}
 };

@@ -1,12 +1,12 @@
 #pragma once
 #include <SettingsWrapper.h>
-#include <functional>
+#include <thread>
 
 class MotorHandler {
 public:
 	MotorHandler(SettingsWrapper& s) : sw(s) {
-		pan = sw.motor_tilt_forward;
-		tilt = sw.motor_tilt_forward;
+		pan = (int) sw.motor_tilt_forward;
+		tilt = (int) sw.motor_tilt_forward;
 	}
 	SettingsWrapper& sw;
 	double getCurrentPanDegrees() const;
@@ -24,6 +24,7 @@ public:
 	double panMax() const;
 	double tiltMin() const;
 	double tiltMax() const;
+	void updatePos();
 
 	~MotorHandler();
 private:
@@ -37,7 +38,6 @@ private:
 	bool killSignal = false;
 	class SerialPort* ardy;
 	void updatePosRepeat();
-	void updatePos();
 	void writePos(int pan, int tilt);
 	void writePosShifted(int pan, int tilt);
 	bool addRotation(double pan, double tilt);

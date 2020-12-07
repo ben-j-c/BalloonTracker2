@@ -44,6 +44,7 @@
 namespace GUI {
 	struct DataPoint {
 		double mPan, mTilt;
+		double time;
 		uint64_t index;
 	};
 
@@ -65,6 +66,8 @@ namespace GUI {
 
 	__declspec(dllexport) double dCountDown = 30;
 	__declspec(dllexport) double dCountDownValue;
+
+	__declspec(dllexport) std::chrono::time_point<std::chrono::system_clock> tMeasurementStart;
 }
 
 namespace Disp {
@@ -185,7 +188,7 @@ static std::string getFolderDialog() {
 #endif // _WIN64
 }
 
-static void saveData(std::vector<std::string> cols,
+static void saveData(const std::vector<std::string>& cols,
 	const std::vector<double>& data, const std::string& fileName) {
 
 	std::ofstream out;
@@ -221,6 +224,15 @@ static void saveData(const std::string& fileName, SettingsWrapper &sw) {
 
 	for (auto& kv: Disp::keyValuePairs) {
 		out << kv.first.data() << "," << kv.second.data() << "," << std::endl;
+	}
+
+	{
+		using namespace std::chrono;
+		char fractionalSeconds[64] = {0};
+		snprintf(fractionalSeconds, 64, ".%06d", duration_cast<microseconds>(GUI::tMeasurementStart.time_since_epoch()).count()%1000000);
+		auto t = system_clock::to_time_t(GUI::tMeasurementStart);
+		auto tm = gmtime(&t);
+		out << "measurement_start," << std::put_time(tm, "%Y-%m-%d,%H:%M:%S") << fractionalSeconds << "," << std::endl;
 	}
 
 	if (sw.report_frame_number) {
@@ -649,8 +661,9 @@ void drawRightPanel(SettingsWrapper &sw) {
 	if (lines.size() < 1) {
 		lines.emplace_back(new char[512]);
 		linesPtr.emplace_back(lines[0].get());
-		sprintf(lines[0].get(), "%15s %15s %15s",
-			sw.report_frame_number? "Frame#" :"Time",
+		sprintf(lines[0].get(), "%15s %15s %15s %15s",
+			"Frame#",
+			"Time",
 			"Pan",
 			"Tilt");
 	}
@@ -658,7 +671,7 @@ void drawRightPanel(SettingsWrapper &sw) {
 		std::lock_guard<std::mutex> lck(dataLock);
 		lines.emplace_back(new char[512]);
 		char* last = lines[lines.size() - 1].get();
-		sprintf(last, "%15llu %15.2f %15.2f", data[i].index, data[i].mPan, data[i].mTilt);
+		sprintf(last, "%15llu %15.3f %15.2f %15.2f", data[i].index, data[i].time, data[i].mPan, data[i].mTilt);
 		linesPtr.emplace_back(last);
 		mPanData.push_back((float)data[i].mPan);
 		mTiltData.push_back((float)data[i].mTilt);
@@ -915,7 +928,7 @@ int main() {
 		double a = (90 * sin((i / 1) / 100.0*3.14159*2.0));
 		double b = (90 * cos((i / 1) / 100.0*3.14159*2.0));
 		double c = (i*i / 10000.0*(a / 180.0 + 0.5));
-		data.push_back(GUI::DataPoint{ a, b, (uint64_t) i });
+		data.push_back(GUI::DataPoint{ a, b, (double)i / 25, (uint64_t) i });
 		std::this_thread::sleep_for(std::chrono::milliseconds(20));
 	}
 

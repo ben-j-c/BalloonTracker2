@@ -1,6 +1,6 @@
 {
   "debug": true,
-  "com_port": 6,
+  "com_port": 5,
   "com_timeout": 10000,
   "com_baud": 115200,
   "camera": "rtsp://192.168.2.168:554/ch1/main/av_stream",

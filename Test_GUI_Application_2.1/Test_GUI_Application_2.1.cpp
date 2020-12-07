@@ -17,6 +17,7 @@ int main() {
 		GUI::DataPoint& val = GUI::addData();
 		val.index = i;
 		val.mPan = a; val.mTilt = b;
+		val.time = i / 25.0f;
 		std::this_thread::sleep_for(std::chrono::milliseconds(20));
 	}
 

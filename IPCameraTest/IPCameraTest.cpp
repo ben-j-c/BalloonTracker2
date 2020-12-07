@@ -93,11 +93,11 @@ void processFrames() {
 	std::chrono::high_resolution_clock timer;
 	using milisec = std::chrono::duration<float, std::milli>;
 	while (keyboard != 'q' && keyboard != 27) {
-		Mat frame = frameBuff.peekNext();
+		Mat frame = frameBuff.front();
 		auto start = timer.now();
 
 		cuda::GpuMat gpuFrame(frame);
-		frameBuff.readDone();
+		frameBuff.pop_front();
 		cuda::resize(gpuFrame, resized, cv::Size(gpuFrame.cols/4, gpuFrame.rows/4));
 		resized.download(displayFrame);
 		imshow("img", displayFrame);
@@ -141,18 +141,18 @@ void processVideo(char* videoFilename) {
 	using milisec = std::chrono::duration<float, std::milli>;
 	VideoReader vid(videoFilename);
 	cout << "INFO: processVideo starting. DONE" << endl;
-	consumeBufferedFrames(vid, frameBuff.peekInsert());
+	consumeBufferedFrames(vid, frameBuff.back());
 
 	while (keyboard != 'q' && keyboard != 27) {
 		auto start = timer.now();
-		ImageRes& buff = frameBuff.peekInsert();
+		ImageRes& buff = frameBuff.back();
 		int errorCode = 0;
 		if ((errorCode = vid.readFrame(buff)) < 0) {
 			vid = VideoReader(videoFilename);
 			consumeBufferedFrames(vid, buff);
 			continue;
 		}
-		frameBuff.insertDone();
+		frameBuff.push_back();
 
 		auto stop = timer.now();
 		float dt = std::chrono::duration_cast<milisec>(stop - start).count();

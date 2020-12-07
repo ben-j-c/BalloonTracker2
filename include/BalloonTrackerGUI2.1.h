@@ -1,12 +1,13 @@
 #pragma once
 #include "SettingsWrapper.h"
 #include <vector>
-
+#include <chrono>
 
 
 namespace GUI {
 	struct DataPoint {
 		double mPan, mTilt;
+		double time;
 		uint64_t index;
 	};
 
@@ -26,6 +27,8 @@ namespace GUI {
 
 	__declspec(dllimport) double dCountDown;
 	__declspec(dllimport) double dCountDownValue;
+
+	__declspec(dllimport) std::chrono::time_point<std::chrono::system_clock> tMeasurementStart;
 
 	__declspec(dllimport) int StartGUI(SettingsWrapper& sw, bool* stop);
 
