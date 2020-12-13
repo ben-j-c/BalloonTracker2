@@ -61,13 +61,14 @@ std::thread vidThread;
 std::thread vidStopThread;
 std::thread motorsThread;
 std::thread motorStopThread;
-std::thread countdownStopThread;
 std::thread countdownThread;
+std::thread countdownStopThread;
 bool bSendCoordinates = false;
 bool bCountDownStarted = false;
 double dBearing = 0;
 std::chrono::time_point<std::chrono::system_clock> timeStart;
 std::future<int> guiResult;
+std::atomic<double> pxToDegreesFactor = (double) sw.motor_px_to_degree;
 
 
 char keyboard; //input from keyboard
@@ -178,6 +179,7 @@ struct FindBalloonResult findBalloon() {
 		if (sw.show_frame_rgb) {
 			resized.download(displayFrame);
 			if (sw.show_frame_track) {
+				/*
 				cv::drawMarker(displayFrame, cv::Point2i((int)(mean[0] + pxRadius), (int)mean[1]),
 					cv::Scalar(255, 0, 0, 0), 0, 10, 1);
 				cv::drawMarker(displayFrame, cv::Point2i((int)(mean[0] - pxRadius), (int)mean[1]),
@@ -186,6 +188,12 @@ struct FindBalloonResult findBalloon() {
 					cv::Scalar(255, 0, 0, 0), 0, 10, 1);
 				cv::drawMarker(displayFrame, cv::Point2i((int)mean[0], (int)(mean[1] - pxRadius)),
 					cv::Scalar(255, 0, 0, 0), 0, 10, 1);
+				*/
+				cv::drawMarker(displayFrame, cv::Point2i((int)(mean[0]), (int)mean[1]),
+					cv::Scalar(255, 0, 0, 0), 0, 10, 3);
+
+				cv::drawMarker(displayFrame, cv::Point2i((int)(sw.principal_x*sw.image_resize_factor), (int)sw.principal_y*sw.image_resize_factor),
+					cv::Scalar(255, 0, 255, 0), 0, 10, 3);
 			}
 			imshow("Image", displayFrame);
 		}
@@ -206,7 +214,7 @@ void countdownHandler() {
 	using namespace std::chrono;
 	timeStart = timeNow();
 	while (!GUI::bStopSystemRequest && !bStop) {
-		auto dt = timeStart - timeNow();
+		auto dt = timeNow() - timeStart;
 		if (dt > std::chrono::duration<double, std::milli>(GUI::dCountDown*1000.0)) {
 			PRINT_INFO("INFO: Count down ended.");
 			break;
@@ -317,13 +325,20 @@ void stateChange() {
 			//Stop image processing
 			bImageProcStopping = true;
 			PRINT_INFO("INFO: Image processing stopping.");
-			vidStopThread = std::thread([]() {
-				vidThread.join();
-				GUI::bImageProcRunning = false;
-				GUI::bStopImageProcRequest = false;
-				bImageProcStopping = false;
-				PRINT_INFO("INFO: Image processing stopping. DONE");
-			});
+			try {
+				vidStopThread = std::thread([]() {
+					if (vidThread.joinable())
+						vidThread.join();
+					GUI::bImageProcRunning = false;
+					GUI::bStopImageProcRequest = false;
+					bImageProcStopping = false;
+					PRINT_INFO("INFO: Image processing stopping. DONE");
+					delay(1);
+				});
+			}
+			catch (std::exception& e) {
+				PRINT_WARN("WARNING: vidStopThread had an exception: " << e.what());
+			}
 		}
 		else if (!GUI::bImageProcRunning)
 			GUI::bStopImageProcRequest = false;
@@ -351,9 +366,10 @@ void stateChange() {
 			bMotorStopping = true;
 			PRINT_INFO("INFO: Motor connection terminating.");
 			motorStopThread = std::thread([]() {
-				motorsThread.join();
+				if(motorsThread.joinable())
+					motorsThread.join();
 				motors.moveHome();
-				delay(50);
+				delay(500);
 				motors.disengage();
 				GUI::bMotorContRunning = false;
 				GUI::bStopMotorContRequest = false;
@@ -367,6 +383,7 @@ void stateChange() {
 
 	if (GUI::bStartSystemRequest) {
 		if (!GUI::bSystemRunning && !bSystemStarting) {
+			//Start system
 			bSystemStarting = true;
 			PRINT_INFO("INFO: System starting with countdown.");
 			countdownThread = std::thread([]() {
@@ -377,11 +394,19 @@ void stateChange() {
 				bSystemStarting = false;
 				PRINT_INFO("INFO: System starting with countdown. DONE");
 				delay(1000);
-				PRINT_INFO("INFO: Zooming in.");
-				zoom.zoomIn();
-				delay(4000);
-				zoom.stop();
-				PRINT_INFO("INFO: Zooming in. DONE");
+				if (sw.camera_enable_zoom) {
+					PRINT_INFO("INFO: Zooming in.");
+					zoom.zoomIn();
+					auto tStart = timeNow();
+					auto tStop = tStart + std::chrono::milliseconds((uint64_t) sw.camera_zoom_time_ms);
+					while (timeNow() < tStop) {
+						double interpFactor = std::chrono::duration_cast<std::chrono::microseconds>(timeNow() - tStart).count() / (sw.camera_zoom_time_ms*1000);
+						pxToDegreesFactor = interpFactor * sw.motor_px_to_degree_zoomed + (1 - interpFactor)*sw.motor_px_to_degree;
+						delay(1);
+					}
+					zoom.stop();
+					PRINT_INFO("INFO: Zooming in. DONE");
+				}
 			});
 		}
 		else if (GUI::bSystemRunning)
@@ -389,15 +414,19 @@ void stateChange() {
 	}
 	else if (GUI::bStopSystemRequest) {
 		if (GUI::bSystemRunning && !bSystemStopping) {
+			//Stop system
 			bSystemStopping = true;
 			PRINT_INFO("INFO: System stopping.");
 			countdownStopThread = std::thread([]() {
-				countdownThread.join();
-				PRINT_INFO("INFO: Zooming out.");
-				zoom.zoomOut();
-				delay(4000);
-				zoom.stop();
-				PRINT_INFO("INFO: Zooming out. DONE");
+				if(countdownThread.joinable())
+					countdownThread.join();
+				if (sw.camera_enable_zoom) {
+					PRINT_INFO("INFO: Zooming out.");
+					zoom.zoomOut();
+					delay(sw.camera_zoom_time_ms + 200);
+					zoom.stop();
+					PRINT_INFO("INFO: Zooming out. DONE");
+				}
 				while (GUI::bMotorContRunning || GUI::bImageProcRunning) delay(10);
 				GUI::bSystemRunning = false;
 				GUI::bStopSystemRequest = false;
@@ -444,8 +473,16 @@ void controlLoop() {
 				data.mPan = motors.getCurrentPanDegrees();
 				data.mTilt = motors.getCurrentTiltDegrees();
 				data.time = std::chrono::duration_cast<std::chrono::nanoseconds>(timeMotorsSet - GUI::tMeasurementStart).count() / 1E9;
-				motors.addPanDegrees((balPos.x - sw.principal_x) / 10.0f);
-				motors.addTiltDegrees((balPos.y - sw.principal_y) / 10.0f);
+				double deltaPan = (balPos.x - sw.principal_x) * pxToDegreesFactor; //right is +px and positive degrees
+				double deltaTilt = (balPos.y - sw.principal_y) * pxToDegreesFactor; //up is -py and negative degrees
+				motors.addPanDegrees(deltaPan);
+				motors.addTiltDegrees(deltaTilt);
+				if (sw.print_rotation) {
+					PRINT_INFO("INFO: delta (pan,tilt) = (" << deltaPan << ", " << deltaTilt << ")");
+				}
+				if (sw.print_coordinates) {
+					PRINT_INFO("INFO: (px,py) = (" << balPos.x << ", " << balPos.y << ")");
+				}
 				motors.updatePos();
 				frameCount++;
 			}
@@ -486,12 +523,11 @@ int main(int argc, char* argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	//create GUI windows
 	guiResult = std::async(GUI::StartGUI, std::ref(sw), &bStop);
 
 	controlLoop();
 
-	//On exit wait for reading thread
+	//On exit wait for all threads to finish.
 	if (vidThread.joinable())
 		vidThread.join();
 	if (vidStopThread.joinable())

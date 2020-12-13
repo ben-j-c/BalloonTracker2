@@ -16,6 +16,7 @@
 #include <mutex>
 #include <algorithm>
 #include <cctype>
+#include <atomic>
 
 #define GLEW_STATIC
 #include <GL/glew.h>
@@ -64,7 +65,7 @@ namespace GUI {
 	__declspec(dllexport) bool bMotorContRunning = false;
 	__declspec(dllexport) bool bStopMotorContRequest = false;
 
-	__declspec(dllexport) double dCountDown = 30;
+	__declspec(dllexport) double dCountDown = 10;
 	__declspec(dllexport) double dCountDownValue;
 
 	__declspec(dllexport) std::chrono::time_point<std::chrono::system_clock> tMeasurementStart;
@@ -231,17 +232,17 @@ static void saveData(const std::string& fileName, SettingsWrapper &sw) {
 		char fractionalSeconds[64] = {0};
 		snprintf(fractionalSeconds, 64, ".%06d", duration_cast<microseconds>(GUI::tMeasurementStart.time_since_epoch()).count()%1000000);
 		auto t = system_clock::to_time_t(GUI::tMeasurementStart);
-		auto tm = gmtime(&t);
+		auto tm = std::localtime(&t);
 		out << "measurement_start," << std::put_time(tm, "%Y-%m-%d,%H:%M:%S") << fractionalSeconds << "," << std::endl;
 	}
 
 	if (sw.report_frame_number) {
-		out << "Frame";
+		out << "Frame Number";
 	}
 	else {
-		out << "Time";
+		out << "Frame Time (Seconds)";
 	}
-	out << ",mPan,mTilt";
+	out << ",Measurement Timestamp (Seconds),Pan (Degrees),Tilt (Degrees)";
 
 	for (int i = 0; i < data.size(); i++) {
 		std::lock_guard<std::mutex> lck(dataLock);
@@ -252,9 +253,8 @@ static void saveData(const std::string& fileName, SettingsWrapper &sw) {
 		else {
 			out << (double)data[i].index / sw.camera_framerate;
 		}
-		if (sw.report_motor_rotation) {
-			out << "," << data[i].mPan << "," << data[i].mTilt;
-		}
+		out << "," << data[i].time;
+		out << "," << data[i].mPan << "," << data[i].mTilt;
 	}
 }
 
@@ -409,7 +409,7 @@ void drawSettings(SettingsWrapper& sw) {
 	ImGui::Columns(1, nullptr, false);
 
 	if (ImGui::CollapsingHeader("Camera")) {
-		if (bStartImageProcRequest || bImageProcRunning)
+		if (bStartImageProcRequest || bImageProcRunning || bStartSystemRequest || bSystemRunning)
 			ImGui::TextColored({ 1,0,0,1 }, "Some settings can't be changed while some systems are running.");
 		double sensWidth = sw.sensor_width,
 			sensHeight = sw.sensor_height,
@@ -418,7 +418,8 @@ void drawSettings(SettingsWrapper& sw) {
 			principalX = sw.principal_x,
 			principalY = sw.principal_y;
 		int imW = sw.imW,
-			imH = sw.imH;
+			imH = sw.imH,
+			zoomTime = sw.camera_zoom_time_ms;
 
 		char cameraAddress[512];
 		strcpy_s<512>(cameraAddress, ((string)sw.camera).c_str());
@@ -443,6 +444,8 @@ void drawSettings(SettingsWrapper& sw) {
 		ImGui::SameLine(); HelpMarker("Height of images from the stream.");
 		ImGui::InputInt("Image height", &imH);
 		ImGui::SameLine(); HelpMarker("Height of images from the stream.");
+		ImGui::InputInt("Zoom time", &zoomTime);
+		ImGui::SameLine(); HelpMarker("Time to zoom in and out in milliseconds.");
 
 		double inf = std::numeric_limits<double>::infinity();
 
@@ -455,6 +458,9 @@ void drawSettings(SettingsWrapper& sw) {
 		if (!bStartImageProcRequest && !bImageProcRunning) {
 			sw.imW = clamp(imW, 1, INT_MAX);
 			sw.imH = clamp(imH, 1, INT_MAX);
+			if (!bStartSystemRequest && !bSystemRunning) {
+				sw.camera_zoom_time_ms = zoomTime;
+			}
 		}
 	}
 
@@ -486,7 +492,9 @@ void drawSettings(SettingsWrapper& sw) {
 			tiltFac = sw.motor_tilt_factor,
 			tiltMin = sw.motor_tilt_min,
 			tiltMax = sw.motor_tilt_max,
-			tiltFor = sw.motor_tilt_forward;
+			tiltFor = sw.motor_tilt_forward,
+			convFactor = sw.motor_px_to_degree,
+			convFactorZoom = sw.motor_px_to_degree_zoomed;
 		int depth = sw.motor_buffer_depth;
 
 		ImGui::InputDouble("Pan conversion factor", &panFac, 0.0, 0.0, "%f");
@@ -507,6 +515,10 @@ void drawSettings(SettingsWrapper& sw) {
 		ImGui::SameLine(); HelpMarker("Microseconds to make the pan motor face forward.");
 		ImGui::InputInt("Latency of camera", &depth);
 		ImGui::SameLine(); HelpMarker("Number of frames from action to received frame.");
+		ImGui::InputDouble("Conversion factor", &convFactor);
+		ImGui::SameLine(); HelpMarker("Pixels to degrees of pan/tilt per frame.");
+		ImGui::InputDouble("Conversion factor zoomed", &convFactorZoom);
+		ImGui::SameLine(); HelpMarker("Pixels to degrees of pan/tilt per frame at full zoom.");
 
 		if (!bStartMotorContRequest && !bMotorContRunning) {
 			sw.motor_pan_factor = panFac;
@@ -517,6 +529,8 @@ void drawSettings(SettingsWrapper& sw) {
 			sw.motor_tilt_min = tiltMin;
 			sw.motor_tilt_max = tiltMax;
 			sw.motor_tilt_forward = tiltFor;
+			sw.motor_px_to_degree = convFactor;
+			sw.motor_px_to_degree_zoomed = convFactorZoom;
 		}
 		if (!bStartImageProcRequest && !bStartMotorContRequest && !bImageProcRunning && !bMotorContRunning) {
 			sw.motor_buffer_depth = depth;

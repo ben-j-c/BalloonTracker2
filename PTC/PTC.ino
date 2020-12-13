@@ -5,6 +5,10 @@
 Servo pan;
 Servo tilt;
 void setup() {
+  pinMode(10, OUTPUT);
+  pinMode(11, OUTPUT);
+  digitalWrite(10, LOW);
+  digitalWrite(11, LOW);
   Serial.begin(115200);
   delay(100);
   waitForBoot();
@@ -36,11 +40,11 @@ void initMotors() {
 
 void serialEvent() {
   int numBytes = Serial.available();
-  byte b5 = Serial.read();
-  byte b4,b3,b2,b1;
+  byte b[5];
+  b[0] = Serial.read();
 
-  if(b5 != 'p') { //if not a position
-    switch(b5) {
+  if(b[0] != 'p') { //if not a position
+    switch(b[0]) {
       case 'b': //init instruction
         initMotors();
         Serial.print('a'); 
@@ -49,6 +53,10 @@ void serialEvent() {
       case 'd': //detach instruction
         pan.detach();
         tilt.detach();
+        pinMode(10, OUTPUT);
+        pinMode(11, OUTPUT);
+        digitalWrite(10, LOW);
+        digitalWrite(11, LOW);
         Serial.print('c');
       break;
 
@@ -62,19 +70,15 @@ void serialEvent() {
     while(Serial.available() < 4); //wait for 4 more chars in buffer
   }
   
-  while(Serial.available()) { //Say 50 characters are in the buffer, only the last 5 are what we need (newest pos)
-    b1 = b2;
-    b2 = b3;
-    b3 = b4;
-    b4 = b5;
-    b5 = Serial.read();
+  for(int i = 1; i < 5;i++) { 
+    b[i] = Serial.read();
   }
 
-  int p = ((int) b3 << 8) + ((int) b2);
-  int t = ((int) b5 << 8) + ((int) b4);
+  int p = ((int) b[2] << 8) + ((int) b[1]);
+  int t = ((int) b[4] << 8) + ((int) b[3]);
   moveTo(p,t);
 }
 
 void loop() {
-  delay(50);
+  //delay(20);
 }

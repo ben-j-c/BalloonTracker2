@@ -231,6 +231,8 @@ public:
 
 	SETTINGSENTRY(string, camera);
 	SETTINGSENTRY(string, onvifEndpoint);
+	SETTINGSENTRY(bool, camera_enable_zoom);
+	SETTINGSENTRY(uint32_t, camera_zoom_time_ms);
 	SETTINGSENTRY(uint32_t, camera_framerate);
 
 	SETTINGSENTRY(bool, socket_enable);
@@ -258,6 +260,8 @@ public:
 	SETTINGSENTRY(double, motor_tilt_max);
 	SETTINGSENTRY(double, motor_tilt_forward);
 	SETTINGSENTRY(uint32_t, motor_buffer_depth);
+	SETTINGSENTRY(double, motor_px_to_degree);
+	SETTINGSENTRY(double, motor_px_to_degree_zoomed);
 
 	SETTINGSENTRY(bool, show_frame_rgb);
 	SETTINGSENTRY(bool, show_frame_mask);

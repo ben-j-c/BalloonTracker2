@@ -13,6 +13,7 @@
 #include <stdio.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
+#include <mutex>
 
 // OpenCV
 #include "opencv2/imgcodecs.hpp"
@@ -62,6 +63,8 @@ void processFrames() {
 
 	while (keyboard != 'q' && keyboard != 27) {
 		//get the input from the keyboard
+		std::this_thread::sleep_for(std::chrono::milliseconds(39));
+		PTC::addRotation((pan - 90) - PTC::currentPan(), tilt - PTC::currentTilt());
 		keyboard = (char)waitKey(1);
 	}
 }
@@ -147,11 +150,38 @@ void processVideo(string videoFileName) {
 #endif
 
 void tiltCallback(int, void*) {
+	/*
+	static auto lastTime = std::chrono::system_clock::now();
+	auto timeNow = std::chrono::system_clock::now();
+	auto dt = std::chrono::duration_cast<std::chrono::milliseconds>(timeNow - lastTime);
+	lastTime = lastTime + std::chrono::milliseconds(20);
+	if (dt.count() < 20) {
+		uint64_t ms = 20 - dt.count();
+		lastTime = lastTime + std::chrono::milliseconds(ms);
+		std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+	}
+	else {
+		lastTime = timeNow;
+	}
 	PTC::addRotation((pan - 90) - PTC::currentPan(), tilt - PTC::currentTilt());
+	*/
 }
 
 void panCallback(int, void*) {
+	/*
+	static auto lastTime = std::chrono::system_clock::now();
+	auto timeNow = std::chrono::system_clock::now();
+	auto dt = std::chrono::duration_cast<std::chrono::milliseconds>(timeNow - lastTime);
+	if (dt.count() < 20) {
+		uint64_t ms = 20 - dt.count();
+		lastTime = lastTime + std::chrono::milliseconds(ms);
+		std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+	}
+	else {
+		lastTime = timeNow;
+	}
 	PTC::addRotation((pan - 90) - PTC::currentPan(), tilt - PTC::currentTilt());
+	*/
 }
 
 int main(int argc, char* argv[]) {

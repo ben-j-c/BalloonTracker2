@@ -27,7 +27,7 @@ T clamp(T a, T b, T v) {
 }
 
 double MotorHandler::getCurrentPanDegrees() const {
-	return (pan - sw.motor_pan_forward) / sw.motor_pan_factor;;
+	return (pan - sw.motor_pan_forward) / sw.motor_pan_factor;
 }
 
 double MotorHandler::getCurrentTiltDegrees() const {
@@ -49,7 +49,7 @@ void MotorHandler::addPanDegrees(double p) {
 }
 
 void MotorHandler::addTiltDegrees(double t) {
-	setNextPanDegrees(getCurrentTiltDegrees() + t);
+	setNextTiltDegrees(getCurrentTiltDegrees() + t);
 }
 
 bool MotorHandler::startup() {
