@@ -137,7 +137,7 @@ bool VideoReader::ready() const {
 
 void VideoReader::openFile(const char* url) {
 	av_dict_set(&options, "rtsp_transport", "tcp", 0);
-	if (avformat_open_input(&pFormatContext, url, nullptr, nullptr))
+	if (avformat_open_input(&pFormatContext, url, nullptr, &options))
 		throw std::runtime_error("avformat could not open");
 
 	if (avformat_find_stream_info(pFormatContext, nullptr) < 0) {
