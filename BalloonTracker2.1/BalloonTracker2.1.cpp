@@ -1,6 +1,8 @@
 #ifdef _DEBUG
 #endif
 
+#define NO_GPU
+
 // Project
 #include <CircularBuffer.h>
 #include <SettingsWrapper.h>
@@ -30,12 +32,18 @@
 #include <opencv2/video.hpp>
 #include <opencv2/features2d.hpp>
 
+#ifdef NO_GPU
+
+#else
+
 #include <opencv2/core/core.hpp>
 #include <opencv2/core/cuda.hpp>
 #include <opencv2/core/cuda.inl.hpp>
 #include <opencv2/cudaarithm.hpp>
 #include <opencv2/cudaimgproc.hpp>
 #include <opencv2/cudawarping.hpp>
+
+#endif // NO_GPU
 
 #define USE_VIDEOREADER_BEN
 #define PRINT_INFO(X) if(sw.print_info) cout << X << std::endl;
@@ -95,6 +103,117 @@ void delay(int ms) {
 auto timeNow() {
 	return chrono::system_clock::now();
 }
+
+#ifdef NO_GPU
+
+void rgChroma(Mat image, std::vector<Mat>& chroma) {
+	Mat i16;
+	std::vector<Mat> colors(3);
+	std::vector<Mat> rgc(3);
+
+	//Convert to 16 bit and sum values
+	image.convertTo(i16, CV_16UC3);
+	split(i16, colors);
+	add(colors[0], colors[1], chroma[3]);
+	add(chroma[3], colors[2], chroma[3]);
+
+	//perform fixed point rgChromaticity
+	image.convertTo(i16, CV_16UC3, 256);
+	split(i16, colors);
+	divide(colors[0], chroma[3], rgc[0]);
+	divide(colors[1], chroma[3], rgc[1]);
+	divide(colors[2], chroma[3], rgc[2]);
+
+	//Only lower bits are needed because of fixed point division
+	rgc[0].convertTo(chroma[2], CV_8U);
+	rgc[1].convertTo(chroma[1], CV_8U);
+	rgc[2].convertTo(chroma[0], CV_8U);
+
+	chroma[3].clone().convertTo(chroma[3], CV_8U, 1.0 / 3.0);
+}
+
+struct FindBalloonResult { double x, y; bool frameReady, noBalloon; };
+
+struct FindBalloonResult findBalloon() {
+	if (frameBuff.size() == 0)
+		return { NAN, NAN, false, false };
+
+	Mat frame = frameBuff.front();
+	Mat gpuFrame = frame.clone();
+	frameBuff.pop_front();
+	Mat resized, blob;
+	std::vector<Mat> chroma(4);
+	resize(gpuFrame, resized,
+		cv::Size(
+		(int)(gpuFrame.cols*sw.image_resize_factor),
+			(int)(gpuFrame.rows*sw.image_resize_factor)),
+		0.0, 0.0, INTER_NEAREST);
+	rgChroma(resized, chroma); //{R, G, B, S}
+	threshold(chroma[0], chroma[0], sw.thresh_red, 255, THRESH_BINARY);
+	threshold(chroma[1], chroma[1], sw.thresh_green, 255, THRESH_BINARY_INV);
+	threshold(chroma[3], chroma[3], sw.thresh_s, 255, THRESH_BINARY);
+
+	bitwise_and(chroma[3], chroma[0], blob);
+	bitwise_and(chroma[1], blob, blob);
+
+	std::vector<cv::Point> loc;
+	Mat temp;
+	cv::findNonZero(blob, loc);
+
+	Mat displayFrame;
+	if (sw.show_frame_mask) {
+		imshow("blob", blob);
+	}
+	if (sw.show_frame_mask_r) {
+		imshow("Mask R", chroma[0]);
+	}
+	if (sw.show_frame_mask_g) {
+		imshow("Mask G", chroma[1]);
+	}
+	if (sw.show_frame_mask_s) {
+		imshow("Mask S", chroma[3]);
+	}
+
+	if (loc.size() >= 50) {
+		cv::Scalar mean = cv::mean(loc);
+		double pxRadius = sqrt(loc.size() / M_PI);
+		double pxX = mean[0] / sw.image_resize_factor;
+		double pxY = mean[1] / sw.image_resize_factor;
+		double area = loc.size() / (sw.image_resize_factor * sw.image_resize_factor);
+
+		if (sw.show_frame_rgb) {
+			if (sw.show_frame_track) {
+				/*
+				cv::drawMarker(displayFrame, cv::Point2i((int)(mean[0] + pxRadius), (int)mean[1]),
+					cv::Scalar(255, 0, 0, 0), 0, 10, 1);
+				cv::drawMarker(displayFrame, cv::Point2i((int)(mean[0] - pxRadius), (int)mean[1]),
+					cv::Scalar(255, 0, 0, 0), 0, 10, 1);
+				cv::drawMarker(displayFrame, cv::Point2i((int)mean[0], (int)(mean[1] + pxRadius)),
+					cv::Scalar(255, 0, 0, 0), 0, 10, 1);
+				cv::drawMarker(displayFrame, cv::Point2i((int)mean[0], (int)(mean[1] - pxRadius)),
+					cv::Scalar(255, 0, 0, 0), 0, 10, 1);
+				*/
+				cv::drawMarker(displayFrame, cv::Point2i((int)(mean[0]), (int)mean[1]),
+					cv::Scalar(255, 0, 0, 0), 0, 10, 3);
+
+				cv::drawMarker(displayFrame, cv::Point2i((int)(sw.principal_x*sw.image_resize_factor), (int)sw.principal_y*sw.image_resize_factor),
+					cv::Scalar(255, 0, 255, 0), 0, 10, 3);
+			}
+			imshow("Image", resized);
+		}
+
+		return { pxX, pxY, true, false };
+	}
+	else {
+		if (sw.show_frame_rgb) {
+			imshow("Image", resized);
+		}
+
+		return { NAN, NAN, true, true };
+	}
+}
+
+#else
 
 void rgChroma(cuda::GpuMat image, std::vector<cuda::GpuMat>& chroma) {
 	cuda::GpuMat i16;
@@ -209,6 +328,8 @@ struct FindBalloonResult findBalloon() {
 		return { NAN, NAN, true, true };
 	}
 }
+
+#endif // NO_GPU
 
 void countdownHandler() {
 	using namespace std::chrono;
