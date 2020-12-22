@@ -32,11 +32,13 @@ Compilation dependencies:
 1. Windows 7, 8, 10 (I use Windows specific functions for opening files as well my VideoReader class uses windows libraries for FFMPEG).
 2. VisualStudio 2017 (don't see why you couldn't use any other version though).
 3. OpenCV 3.4.9 with CUDA.
-4. FFMPEG. 
+4. FFMPEG.
+5. libCURL
 
 Standalone binaries dependencies:
 1. [VisualStudio 2017 redistributable](https://support.microsoft.com/en-ca/help/2977003/the-latest-supported-visual-c-downloads)
 2. [CUDA 10.2](https://developer.nvidia.com/cuda-10.2-download-archive)
+3. [OpenSSL](https://slproweb.com/products/Win32OpenSSL.html)
 
 # Build environment
 Once the dependencies have been installed, this repo can be cloned and the solution opened.
