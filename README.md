@@ -47,6 +47,8 @@ Multiple environment variables are required:
 - `GLFW_x64`: Root directory for [GLFW 3.0](https://www.glfw.org/download.html). i.e., `$(GLFW_x64)/lib` should resolve to the library and `$(GLFW_x64)/include` for the headers.
 - `GLEW_PATH`: Root directory for [GLEW](http://glew.sourceforge.net/). i.e., `$(GLEW_PATH)/lib/Release/x64` and `$(GLEW_PATH)/include` blah blah.
 - `FFMPEG_PATH`: Root directory for ffmpeg install directory. Should have `\lib` and `include`. Built from source.
+- `CURL_LIBRARY`: libary directory of [CURL](https://curl.se/windows/).
+- `CURL_INCLUDE_DIR`: include directory of [CURL](https://curl.se/windows/).
 
 Notice that OpenCV has DLLs. Make sure these are somewhere on your path. OpenCV specifically has the debug (`opencvworld349d.dll`) and release (`opencvworld349.dll`) dlls.
 
