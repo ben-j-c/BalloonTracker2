@@ -43,7 +43,7 @@ Standalone binaries dependencies:
 # Build environment
 Once the dependencies have been installed, this repo can be cloned and the solution opened.
 Multiple environment variables are required:
-- `BT_OCV`: Root directory of your OpenCV build. i.e., `$(BT_OCV)/include`, and `$(BT_OCV)/x64/vc15/lib`, should resolve to the proper directories. Built from source.
+- `BT_OCV`: Root directory of your OpenCV build. i.e., `$(BT_OCV)/include`, and `$(BT_OCV)/x64/vc15/lib`, should resolve to the proper directories. Built from source. [This](https://opencv.org/releases/page/2/) should work.
 - `GLFW_x64`: Root directory for [GLFW 3.0](https://www.glfw.org/download.html). i.e., `$(GLFW_x64)/lib` should resolve to the library and `$(GLFW_x64)/include` for the headers.
 - `GLEW_PATH`: Root directory for [GLEW](http://glew.sourceforge.net/). i.e., `$(GLEW_PATH)/lib/Release/x64` and `$(GLEW_PATH)/include` blah blah.
 - `FFMPEG_PATH`: Root directory for ffmpeg install directory. Should have `\lib` and `include`. Built from source. [This](https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full.7z) should also work. 
