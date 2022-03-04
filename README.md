@@ -5,6 +5,9 @@ The core project is 'BalloonTracker.'
 
 BalloonTracker software is an application to be used in conjunction with the BalloonTracker hardware. These two components work together to automate the measuring of the wind speed of a red helium balloon.
 
+# License
+Please see `LICENSE.md` in the root directory of this repo.
+
 # The Hardware
 1. A camera with zoom capabilities and Ethernet port for connection to a computer.
 2. Pan-tilt mechanism manipulated by two servo motors.
